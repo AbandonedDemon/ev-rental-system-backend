@@ -1,6 +1,6 @@
 import Vehicle from "../models/vehicle.model.js";
 
-export const DEFAULT_VEHICLES = [
+const DEFAULT_VEHICLES = [
   {
     vin: "EVR-2024-0001",
     model: "Tesla Model 3",
@@ -8,7 +8,7 @@ export const DEFAULT_VEHICLES = [
     batteryPercent: 85,
     status: "available",
     odometer: 12450,
-    stationCode: "station-hcm-01",
+    stationId: "station-hcm-01",
   },
   {
     vin: "EVR-2024-0002",
@@ -17,34 +17,21 @@ export const DEFAULT_VEHICLES = [
     batteryPercent: 60,
     status: "maintenance",
     odometer: 30210,
-    stationCode: "station-hcm-02",
+    stationId: "station-hcm-02",
   },
 ];
 
-export const seedVehicles = async ({ stationMap } = {}) => {
-  const seededVehicles = [];
-
+export const seedVehicles = async () => {
   for (const vehicle of DEFAULT_VEHICLES) {
-    const payload = { ...vehicle };
-    if (payload.stationCode && stationMap?.has(payload.stationCode)) {
-      payload.station = stationMap.get(payload.stationCode)._id;
-    }
-    delete payload.stationCode;
-
-    let doc = await Vehicle.findOneAndUpdate(
-      { vin: payload.vin },
-      payload,
+    await Vehicle.findOneAndUpdate(
+      { vin: vehicle.vin },
+      vehicle,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
-
-    doc = await doc.populate("station");
-    seededVehicles.push(doc);
   }
 
   const count = await Vehicle.estimatedDocumentCount();
   console.log(`Vehicle seed complete. Total vehicles: ${count}`);
-
-  return seededVehicles;
 };
 
 export default seedVehicles;

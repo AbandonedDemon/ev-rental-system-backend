@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 
 const vehicleSchema = new mongoose.Schema(
   {
-    station: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Station",
+    stationId: {
+      type: String,
       default: null,
+      trim: true,
     },
     vin: {
       type: String,

@@ -1,15 +1,65 @@
 import Vehicle from "../models/vehicle.model.js";
-import { createCrudHandlers } from "../utils/crudFactory.js";
 
-const { list, get, create, update, remove } = createCrudHandlers(Vehicle, {
-  populate: "station",
-});
+export const listVehicles = async (req, res, next) => {
+  try {
+    const vehicles = await Vehicle.find().sort({ createdAt: -1 });
+    res.json({ data: vehicles });
+  } catch (error) {
+    next(error);
+  }
+};
 
-export const listVehicles = list;
-export const getVehicle = get;
-export const createVehicle = create;
-export const updateVehicle = update;
-export const deleteVehicle = remove;
+export const getVehicle = async (req, res, next) => {
+  try {
+    const vehicle = await Vehicle.findById(req.params.id);
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+    res.json({ data: vehicle });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createVehicle = async (req, res, next) => {
+  try {
+    const payload = req.body;
+    const vehicle = await Vehicle.create(payload);
+    res.status(201).json({ data: vehicle });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateVehicle = async (req, res, next) => {
+  try {
+    const payload = req.body;
+    const vehicle = await Vehicle.findByIdAndUpdate(req.params.id, payload, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    res.json({ data: vehicle });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteVehicle = async (req, res, next) => {
+  try {
+    const vehicle = await Vehicle.findByIdAndDelete(req.params.id);
+    if (!vehicle) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
 
 export default {
   listVehicles,

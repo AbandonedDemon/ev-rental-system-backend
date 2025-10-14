@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import express from "express";
 
 import connectDB from "./config/mongodb.js";
+import { createSwaggerSpec, createSwaggerUiHtml } from "./config/swagger.js";
 import bookingRoutes from "./routes/booking.routes.js";
 import handoverRoutes from "./routes/handover.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
@@ -17,11 +18,26 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT;
 
+const swaggerSpec = createSwaggerSpec({
+  serverUrl:
+    process.env.SWAGGER_SERVER_URL ||
+    (PORT ? `http://localhost:${PORT}` : "http://localhost:4000"),
+});
+const swaggerUiHtml = createSwaggerUiHtml();
+
 app.use(corsMiddleware);
 app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({ message: "EV Rental System API" });
+});
+
+app.get("/swagger.json", (req, res) => {
+  res.json(swaggerSpec);
+});
+
+app.get("/docs", (req, res) => {
+  res.type("html").send(swaggerUiHtml);
 });
 
 app.use("/api/booking", bookingRoutes);

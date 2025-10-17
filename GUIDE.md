@@ -7,6 +7,7 @@ This guide summarizes the REST resources that are currently available in the EV 
 1. Ensure a MongoDB instance is running (e.g. locally on `mongodb://127.0.0.1:27017/ev-rental-system`).
 2. Install dependencies: `npm install`
 3. Start the development server: `npm run start`
+4. Explore the interactive API documentation at `http://localhost:4000/docs` (or `<your-host>/docs` in other environments). The raw OpenAPI document is available at `/swagger.json` if you prefer importing into tools such as Postman.
 
 On boot the application will connect to MongoDB, ensure the collections exist, and seed default documents so every entity has data you can query immediately.
 
@@ -17,10 +18,10 @@ All endpoints are prefixed with `/api`. Each resource exposes the standard CRUD 
 | Resource | Route Prefix | Populated References |
 | --- | --- | --- |
 | Users | `/api/users` | – |
-| User documents | `/api/user-documents` | `user`, `verifiedBy` |
+| User documents | `/api/userDocs` | `user`, `verifiedBy` |
 | Stations | `/api/stations` | – |
-| Vehicles | `/api/vehicles` | `station` |
-| Bookings | `/api/bookings` | `renter`, `pickupStation`, `vehicle` |
+| Vehicles | `/api/vehicles` | – |
+| Bookings | `/api/booking` | `renter`, `pickupStation`, `vehicle` |
 | Rentals | `/api/rentals` | `booking`, `renter`, `vehicle`, `pickupStation`, `returnStation` |
 | Handovers | `/api/handovers` | `rental`, `vehicle`, `staff` |
 | Payments | `/api/payments` | `rental` |
@@ -40,7 +41,7 @@ The following records are inserted (or updated) automatically to make testing ea
 
 You can use these seeded documents to exercise relationships — for example:
 
-- Fetch the Tesla booking: `GET /api/bookings` and locate the record with status `confirmed`.
+- Fetch the Tesla booking: `GET /api/booking` and locate the record with status `confirmed`.
 - Inspect the completed rental workflow: `GET /api/rentals`, `GET /api/handovers`, and `GET /api/payments` using the IDs referenced in the rental payload.
 - Update or delete any document to observe validation handling (e.g. enforcing enum values, numeric bounds, and reference integrity).
 

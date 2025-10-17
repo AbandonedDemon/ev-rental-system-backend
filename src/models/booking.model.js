@@ -21,6 +21,11 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    rentalDays: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled", "expired"],

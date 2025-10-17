@@ -294,6 +294,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               ],
             },
             pickupTimeExpected: { type: "string", format: "date-time" },
+            rentalDays: { type: "integer", minimum: 1 },
             status: {
               type: "string",
               enum: ["pending", "confirmed", "cancelled", "expired"],
@@ -318,6 +319,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             pickupStation: { type: "string" },
             vehicle: { type: "string" },
             pickupTimeExpected: { type: "string", format: "date-time" },
+            rentalDays: { type: "integer", minimum: 1 },
             status: {
               type: "string",
               enum: ["pending", "confirmed", "cancelled", "expired"],

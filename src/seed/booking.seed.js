@@ -8,6 +8,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: "EVR-2024-0001",
     pickupTimeExpected: new Date("2024-06-01T08:00:00.000Z"),
     status: "confirmed",
+    rentalDays: 3,
   },
   {
     key: "alice-july-hold",
@@ -16,6 +17,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: null,
     pickupTimeExpected: new Date("2024-07-10T09:00:00.000Z"),
     status: "pending",
+    rentalDays: 2,
   },
   {
     key: "alice-august-getaway",
@@ -24,6 +26,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: "EVR-2024-0005",
     pickupTimeExpected: new Date("2024-08-05T02:00:00.000Z"),
     status: "confirmed",
+    rentalDays: 5,
   },
   {
     key: "minh-danang-weekend",
@@ -32,6 +35,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: "EVR-2024-0003",
     pickupTimeExpected: new Date("2024-08-17T02:30:00.000Z"),
     status: "confirmed",
+    rentalDays: 4,
   },
 ];
 
@@ -54,6 +58,7 @@ export const seedBookings = async ({ userMap, stationMap, vehicleMap }) => {
         : null,
       pickupTimeExpected: booking.pickupTimeExpected,
       status: booking.status,
+      rentalDays: booking.rentalDays ?? 1,
     };
 
     let doc = await Booking.findOneAndUpdate(

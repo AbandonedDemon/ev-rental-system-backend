@@ -12,23 +12,40 @@ const handoverSchema = new mongoose.Schema(
       ref: "Vehicle",
       required: true,
     },
+    stationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Station",
+      required: true,
+    },
     staff: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      default: null,
+    },
+    type: {
+      type: String,
+      enum: ["pickup", "return"],
       required: true,
     },
-    action: {
-      type: String,
-      enum: ["pickup", "return", "inspection"],
-      required: true,
+    odoReading: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    batteryPercent: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
     },
     notes: {
       type: String,
       default: null,
+      trim: true,
     },
-    photosUrl: {
-      type: String,
-      default: null,
+    photos: {
+      type: [String],
+      default: [],
     },
   },
   {

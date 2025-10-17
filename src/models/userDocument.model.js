@@ -7,27 +7,48 @@ const userDocumentSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    docType: {
+    documentType: {
       type: String,
       required: true,
       trim: true,
+      default: "national_id",
     },
-    docNumber: {
+    identityNumber: {
       type: String,
       trim: true,
-      default: null,
+      required: true,
     },
-    docImageUrl: {
+    drivingLicenseNumber: {
       type: String,
       trim: true,
-      default: null,
+      required: true,
     },
-    verifyStatus: {
+    frontImageUrl: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      trim: true,
+      required: true,
+    },
+    backImageUrl: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    drivingLicenseImageUrl: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "under_review", "verified", "rejected"],
       default: "pending",
     },
-    uploadedAt: {
+    notes: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    submittedAt: {
       type: Date,
       default: Date.now,
     },

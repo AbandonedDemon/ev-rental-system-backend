@@ -28,6 +28,10 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
         description: "Basic uptime check endpoints.",
       },
       {
+        name: "Auth",
+        description: "User authentication endpoints (login & register).",
+      },
+      {
         name: "Users",
         description: "Manage renter, staff, and admin accounts.",
       },
@@ -75,6 +79,37 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             },
           },
           required: ["message"],
+        },
+        AuthLoginRequest: {
+          type: "object",
+          properties: {
+            email: { type: "string", format: "email" },
+            password: { type: "string", minLength: 1 },
+          },
+          required: ["email", "password"],
+        },
+        AuthRegisterRequest: {
+          type: "object",
+          properties: {
+            fullName: { type: "string" },
+            email: { type: "string", format: "email" },
+            password: { type: "string", minLength: 1 },
+            phone: { type: "string", nullable: true },
+            role: {
+              type: "string",
+              enum: ["renter", "staff", "admin"],
+              description: "Optional role override. Defaults to renter if omitted.",
+            },
+          },
+          required: ["fullName", "email", "password"],
+        },
+        AuthResponse: {
+          type: "object",
+          properties: {
+            token: { type: "string", description: "JWT access token." },
+            user: { $ref: "#/components/schemas/User" },
+          },
+          required: ["token", "user"],
         },
         User: {
           type: "object",
@@ -683,6 +718,98 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
                     },
                     required: ["message"],
                   },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/auth/login": {
+        post: {
+          tags: ["Auth"],
+          summary: "User login",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AuthLoginRequest" },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Authenticated user and JWT token",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: { $ref: "#/components/schemas/AuthResponse" },
+                    },
+                    required: ["data"],
+                  },
+                },
+              },
+            },
+            400: {
+              description: "Validation error",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+            401: {
+              description: "Invalid credentials",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/auth/register": {
+        post: {
+          tags: ["Auth"],
+          summary: "Register a new user account",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AuthRegisterRequest" },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "User registered",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: { $ref: "#/components/schemas/AuthResponse" },
+                    },
+                    required: ["data"],
+                  },
+                },
+              },
+            },
+            400: {
+              description: "Validation error",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+            409: {
+              description: "User already exists",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
                 },
               },
             },

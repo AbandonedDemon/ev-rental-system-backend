@@ -1,6 +1,7 @@
 import path from "path";
 import dotenv from "dotenv";
 import express from "express";
+import authRoutes from "./routes/auth.routes.js";
 
 import connectDB from "./config/mongodb.js";
 import { createSwaggerSpec, createSwaggerUiHtml } from "./config/swagger.js";
@@ -44,8 +45,10 @@ app.get("/docs", (req, res) => {
   res.type("html").send(swaggerUiHtml);
 });
 
+app.use("/api/auth", authRoutes);
 app.use("/api/booking", bookingRoutes);
 app.use("/api/bookings", bookingRoutes);
+
 app.use("/api/booking", bookingRoutes); // legacy support
 app.use("/api/handovers", handoverRoutes);
 app.use("/api/brands", brandRoutes);
@@ -79,3 +82,5 @@ const startServer = async () => {
 };
 
 startServer();
+
+

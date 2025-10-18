@@ -1,16 +1,13 @@
-import crypto from "crypto";
+import { hashPassword } from "../utils/password.js";
 import User from "../models/user.model.js";
 
-const sanitizeUser = (userDoc) => {
-  const user = userDoc.toObject ? userDoc.toObject() : userDoc;
-  if (user.passwordHash) {
+export const sanitizeUser = (userDoc) => {
+  const user = userDoc?.toObject ? userDoc.toObject() : userDoc;
+  if (user?.passwordHash) {
     delete user.passwordHash;
   }
   return user;
 };
-
-const hashPassword = (password) =>
-  crypto.createHash("sha256").update(password).digest("hex");
 
 export const listUsers = async (req, res, next) => {
   try {
@@ -43,7 +40,7 @@ export const createUser = async (req, res, next) => {
     const payload = {
       ...rest,
       role,
-      passwordHash: hashPassword(password),
+      passwordHash: await hashPassword(password),
     };
 
     const user = await User.create(payload);
@@ -60,7 +57,7 @@ export const updateUser = async (req, res, next) => {
   try {
     const updates = { ...req.body };
     if (updates.password) {
-      updates.passwordHash = hashPassword(updates.password);
+      updates.passwordHash = await hashPassword(updates.password);
       delete updates.password;
     }
 

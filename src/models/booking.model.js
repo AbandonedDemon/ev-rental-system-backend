@@ -149,8 +149,8 @@ const bookingSchema = new mongoose.Schema(
     // Trạng thái
     status: {
       type: String,
-      enum: ["pending_payment", "confirmed", "cancelled", "completed", "expired"],
-      default: "pending_payment",
+      enum: ["pending", "confirmed", "paid", "completed", "cancelled", "expired"],
+      default: "pending",
     },
 
     // Mã booking tự động

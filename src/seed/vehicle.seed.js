@@ -522,7 +522,7 @@ export const seedVehicles = async ({ stationMap, brandMap } = {}) => {
     const { brandCode, ...vehicleData } = vehicle;
     const payload = {
       ...vehicleData,
-      stationId: station?.code ?? vehicle.stationId,
+      stationId: station?._id ?? vehicle.stationId, // FIX: Use _id instead of code
       brand: brand?._id,
     };
 

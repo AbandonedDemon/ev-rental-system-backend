@@ -4,7 +4,9 @@ import {
   listBookings,
   getBooking,
   cancelBooking,
+  updateBookingStatus,
 } from "../controllers/booking.controller.js";
+import authGuard from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -152,5 +154,65 @@ router.get("/:id", getBooking);
  *         description: Booking not found
  */
 router.put("/:id/cancel", cancelBooking);
+
+/**
+ * @swagger
+ * /api/bookings/{id}/status:
+ *   put:
+ *     summary: Cập nhật trạng thái booking (Staff/Admin only)
+ *     description: |
+ *       **Flow trạng thái booking:**
+ *       1. `pending` - User tạo booking chọn Brand (chưa có xe cụ thể)
+ *       2. `confirmed` - Staff xác nhận và GÁN XE cụ thể cho booking
+ *       3. `paid` - User thấy xe đã gán, thanh toán thành công (tạo Rental)
+ *       4. `completed` - Hoàn thành thuê xe, trả xe
+ *       5. `cancelled` - Hủy booking (trả xe nếu đã gán)
+ *       6. `expired` - Hết hạn (quá pickupDateTime mà vẫn pending)
+ *       
+ *       **Business Rules:**
+ *       - `confirmed`: pending → confirmed (bắt buộc vehicleId, xe vẫn available)
+ *       - `paid`: confirmed → paid (xe → rented, tạo Rental)
+ *       - `completed`: paid → completed (xe → available, kết thúc Rental)
+ *       - `cancelled`: any → cancelled (trả xe về available nếu cần)
+ *       - `expired`: pending → expired (tự động bởi cron job)
+ *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, confirmed, paid, completed, cancelled, expired]
+ *                 example: "confirmed"
+ *               vehicleId:
+ *                 type: string
+ *                 description: Required khi status = "confirmed"
+ *                 example: "673e5c123456789abcdef999"
+ *     responses:
+ *       200:
+ *         description: Cập nhật trạng thái thành công
+ *       400:
+ *         description: Trạng thái không hợp lệ hoặc vi phạm business rules
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền
+ *       404:
+ *         description: Booking not found
+ */
+router.put("/:id/status", authGuard("staff", "admin"), updateBookingStatus);
 
 export default router;

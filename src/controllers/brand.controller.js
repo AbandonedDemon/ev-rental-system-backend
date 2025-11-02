@@ -1,16 +1,170 @@
 import Brand from "../models/brand.model.js";
 import Vehicle from "../models/vehicle.model.js";
-import { createCrudHandlers } from "../utils/crudFactory.js";
 
-const { list, get, create, update, remove } = createCrudHandlers(Brand, {
-  defaultSort: { name: 1 },
-});
+// LIST Brands
+export const listBrands = async (req, res, next) => {
+  try {
+    const brands = await Brand.find().sort({ name: 1 }).lean();
+    return res.json({ data: brands });
+  } catch (error) {
+    return next(error);
+  }
+};
 
-export const listBrands = list;
-export const getBrand = get;
-export const createBrand = create;
-export const updateBrand = update;
-export const deleteBrand = remove;
+// GET Brand by ID
+export const getBrand = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const brand = await Brand.findById(id).lean();
+
+    if (!brand) {
+      return res.status(404).json({ message: "Brand not found" });
+    }
+
+    return res.json({ data: brand });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// CREATE Brand
+export const createBrand = async (req, res, next) => {
+  try {
+    const {
+      code,
+      name,
+      description,
+      baseDailyRate,
+      depositAmount,
+      imageUrl,
+      images,
+      specs,
+      manufacturer,
+      features,
+      isActive,
+    } = req.body;
+
+    // Validation
+    if (!code || !name || !baseDailyRate) {
+      return res.status(400).json({
+        message: "Missing required fields: code, name, baseDailyRate"
+      });
+    }
+
+    // Kiểm tra trùng code
+    const existingBrand = await Brand.findOne({ code });
+    if (existingBrand) {
+      return res.status(400).json({
+        message: `Brand with code '${code}' already exists`
+      });
+    }
+
+    const newBrand = await Brand.create({
+      code,
+      name,
+      description,
+      baseDailyRate,
+      depositAmount,
+      imageUrl,
+      images: images || [],
+      specs: specs || {},
+      manufacturer: manufacturer || {},
+      features: features || [],
+      isActive: isActive !== false,
+    });
+
+    return res.status(201).json({
+      message: "Brand created successfully",
+      data: newBrand,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "Brand with this code or name already exists"
+      });
+    }
+    return next(error);
+  }
+};
+
+// UPDATE Brand
+export const updateBrand = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      code,
+      name,
+      description,
+      baseDailyRate,
+      depositAmount,
+      imageUrl,
+      images,
+      specs,
+      manufacturer,
+      features,
+      isActive,
+    } = req.body;
+
+    const brand = await Brand.findById(id);
+    if (!brand) {
+      return res.status(404).json({ message: "Brand not found" });
+    }
+
+    // Update fields
+    if (code !== undefined) brand.code = code;
+    if (name !== undefined) brand.name = name;
+    if (description !== undefined) brand.description = description;
+    if (baseDailyRate !== undefined) brand.baseDailyRate = baseDailyRate;
+    if (depositAmount !== undefined) brand.depositAmount = depositAmount;
+    if (imageUrl !== undefined) brand.imageUrl = imageUrl;
+    if (images !== undefined) brand.images = images;
+    if (specs !== undefined) brand.specs = { ...brand.specs, ...specs };
+    if (manufacturer !== undefined) brand.manufacturer = { ...brand.manufacturer, ...manufacturer };
+    if (features !== undefined) brand.features = features;
+    if (isActive !== undefined) brand.isActive = isActive;
+
+    await brand.save();
+
+    return res.json({
+      message: "Brand updated successfully",
+      data: brand,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "Brand with this code or name already exists"
+      });
+    }
+    return next(error);
+  }
+};
+
+// DELETE Brand
+export const deleteBrand = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Kiểm tra xem có vehicle nào đang dùng brand này không
+    const vehicleCount = await Vehicle.countDocuments({ brand: id });
+    if (vehicleCount > 0) {
+      return res.status(400).json({
+        message: `Cannot delete brand. ${vehicleCount} vehicle(s) are using this brand.`
+      });
+    }
+
+    const brand = await Brand.findByIdAndDelete(id);
+    if (!brand) {
+      return res.status(404).json({ message: "Brand not found" });
+    }
+
+    return res.json({
+      message: "Brand deleted successfully",
+      data: brand,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 export const getBrandVehicleCount = async (req, res, next) => {
   try {

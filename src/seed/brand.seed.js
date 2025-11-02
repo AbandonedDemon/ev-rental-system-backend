@@ -143,12 +143,12 @@ const DEFAULT_BRANDS = [
     description: "Compact city EV ideal for short urban trips.",
     baseDailyRate: 590000,
     depositAmount: 2000000,
-    imageUrl: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=800",
+    imageUrl: "https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=800",
     images: [
-      "https://vinfastauto.com/themes/porto/img/vf3/gallery/vf3-1.jpg",
-      "https://vinfastauto.com/themes/porto/img/vf3/gallery/vf3-2.jpg",
-      "https://vinfastauto.com/themes/porto/img/vf3/gallery/vf3-3.jpg",
-      "https://vinfastauto.com/themes/porto/img/vf3/gallery/vf3-4.jpg",
+      "https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=800",
+      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800",
+      "https://images.unsplash.com/photo-1593941707874-ef25b8b4a92b?w=800",
+      "https://images.unsplash.com/photo-1599912027806-852e5cdea9dd?w=800",
     ],
     specs: {
       seats: 4,

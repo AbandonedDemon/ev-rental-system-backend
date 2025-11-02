@@ -251,7 +251,7 @@ export const createBooking = async (req, res, next) => {
       pickupLocation: pickupLocation || null,
       promoCode: promoCode || null,
       notes: notes || null,
-      status: "pending_payment",
+      status: "pending", // Chờ thanh toán
     });
 
     // Populate để trả về đầy đủ thông tin
@@ -413,9 +413,207 @@ export const cancelBooking = async (req, res, next) => {
   }
 };
 
+/**
+ * PUT /api/bookings/:id/status - Cập nhật trạng thái booking (Staff/Admin only)
+ * 
+ * Flow trạng thái:
+ * 1. pending → User tạo booking chọn Brand (chưa có xe cụ thể)
+ * 2. confirmed → Staff xác nhận và GÁN XE cụ thể cho booking
+ * 3. paid → User thấy xe đã gán, thanh toán thành công (tạo Rental)
+ * 4. completed → Hoàn thành thuê xe, trả xe
+ * 5. cancelled → Hủy booking (trả xe nếu đã gán)
+ * 6. expired → Hết hạn (quá pickupDateTime mà vẫn pending)
+ */
+export const updateBookingStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, vehicleId } = req.body;
+
+    // Validate status
+    const validStatuses = ["pending", "confirmed", "paid", "completed", "cancelled", "expired"];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${validStatuses.join(", ")}`,
+      });
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy booking",
+      });
+    }
+
+    // Business rules cho việc chuyển trạng thái
+    const currentStatus = booking.status;
+
+    // Không cho phép update booking đã completed
+    if (currentStatus === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể thay đổi trạng thái booking đã hoàn thành",
+      });
+    }
+
+    // CONFIRMED: Staff xác nhận booking và GÁN XE
+    // Phải gán vehicle khi confirm
+    if (status === "confirmed") {
+      // Chỉ cho phép confirm từ pending
+      if (currentStatus !== "pending") {
+        return res.status(400).json({
+          success: false,
+          message: `Chỉ có thể xác nhận booking ở trạng thái pending. Trạng thái hiện tại: ${currentStatus}`,
+        });
+      }
+
+      if (!vehicleId) {
+        return res.status(400).json({
+          success: false,
+          message: "Phải gán xe (vehicleId) khi xác nhận booking",
+        });
+      }
+
+      // Kiểm tra vehicle tồn tại và available
+      const vehicle = await Vehicle.findById(vehicleId);
+      if (!vehicle) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy xe",
+        });
+      }
+
+      if (vehicle.status !== "available") {
+        return res.status(400).json({
+          success: false,
+          message: `Xe hiện đang ở trạng thái: ${vehicle.status}, không thể gán cho booking`,
+        });
+      }
+
+      // Kiểm tra xe có đúng brand không
+      if (vehicle.brand.toString() !== booking.brand.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: "Xe không thuộc brand đã đặt",
+        });
+      }
+
+      // Kiểm tra xe có ở đúng station không
+      if (vehicle.stationId.toString() !== booking.pickupStation.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: "Xe không ở station đã chọn",
+        });
+      }
+
+      // Gán xe (CHƯA chuyển trạng thái xe, đợi user thanh toán)
+      booking.vehicle = vehicleId;
+    }
+
+    // PAID: User đã thanh toán thành công
+    // Chuyển vehicle sang "rented" và tạo Rental record
+    if (status === "paid") {
+      // Chỉ cho phép paid từ confirmed
+      if (currentStatus !== "confirmed") {
+        return res.status(400).json({
+          success: false,
+          message: `Chỉ có thể thanh toán booking đã được xác nhận. Trạng thái hiện tại: ${currentStatus}`,
+        });
+      }
+
+      if (!booking.vehicle) {
+        return res.status(400).json({
+          success: false,
+          message: "Booking chưa được gán xe",
+        });
+      }
+
+      // Update vehicle status to rented
+      const vehicle = await Vehicle.findById(booking.vehicle);
+      if (vehicle) {
+        vehicle.status = "rented";
+        await vehicle.save();
+      }
+
+      // TODO: Tạo Rental record ở đây (hoặc trigger từ Payment success)
+      // const rental = await Rental.create({ ... });
+    }
+
+    // COMPLETED: Hoàn thành booking, trả xe về available
+    if (status === "completed") {
+      // Chỉ cho phép complete từ paid
+      if (currentStatus !== "paid") {
+        return res.status(400).json({
+          success: false,
+          message: `Chỉ có thể hoàn thành booking đã thanh toán. Trạng thái hiện tại: ${currentStatus}`,
+        });
+      }
+
+      if (booking.vehicle) {
+        const vehicle = await Vehicle.findById(booking.vehicle);
+        if (vehicle) {
+          vehicle.status = "available";
+          await vehicle.save();
+        }
+      }
+
+      // TODO: Update Rental record to completed
+    }
+
+    // CANCELLED: Hủy booking
+    // Nếu đã gán xe nhưng chưa paid, trả vehicle về available
+    if (status === "cancelled") {
+      if (booking.vehicle) {
+        const vehicle = await Vehicle.findById(booking.vehicle);
+        // Chỉ trả về available nếu chưa paid (chưa rented)
+        if (vehicle && vehicle.status === "available") {
+          // Vehicle đã gán nhưng user chưa thanh toán, không cần làm gì
+        } else if (vehicle && vehicle.status === "rented" && currentStatus !== "completed") {
+          // Nếu đã thanh toán (rented) thì trả về available
+          vehicle.status = "available";
+          await vehicle.save();
+        }
+      }
+
+      // TODO: Cancel/refund Payment nếu đã paid
+    }
+
+    // EXPIRED: Đánh dấu booking hết hạn
+    // Chỉ auto-expire booking ở trạng thái pending
+    if (status === "expired") {
+      if (currentStatus !== "pending") {
+        return res.status(400).json({
+          success: false,
+          message: "Chỉ có thể đánh dấu expired cho booking ở trạng thái pending",
+        });
+      }
+    }
+
+    // Update booking status
+    booking.status = status;
+    await booking.save();
+
+    // Populate để trả về đầy đủ thông tin
+    const updatedBooking = await Booking.findById(id)
+      .populate("brand", "name code baseDailyRate")
+      .populate("pickupStation", "name code address")
+      .populate("vehicle", "vin plateNo model status");
+
+    res.json({
+      success: true,
+      message: `Cập nhật trạng thái booking thành công: ${currentStatus} → ${status}`,
+      data: updatedBooking,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   createBooking,
   listBookings,
   getBooking,
   cancelBooking,
+  updateBookingStatus,
 };

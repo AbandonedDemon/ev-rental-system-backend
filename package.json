@@ -9,7 +9,9 @@
     "dev": "nodemon src/server.js",
     "deploy": "doppler run -- node src/server.js",
     "seed": "node src/scripts/seed.js",
-    "seed:dev": "doppler run -- node src/scripts/seed.js"
+    "seed:dev": "doppler run -- node src/scripts/seed.js",
+    "reset-db": "doppler run -- node src/scripts/reset-db.js",
+    "reseed": "npm run reset-db && npm run seed:dev"
   },
   "repository": {
     "type": "git",

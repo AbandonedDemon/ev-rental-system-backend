@@ -98,7 +98,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             role: {
               type: "string",
               enum: ["renter", "staff", "admin"],
-              description: "Optional role override. Defaults to renter if omitted.",
+              description:
+                "Optional role override. Defaults to renter if omitted.",
             },
           },
           required: ["fullName", "email", "password"],
@@ -170,7 +171,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           properties: {
             _id: { type: "string" },
             user: {
-              description: "Reference to the owning user. Responses may include a populated user document.",
+              description:
+                "Reference to the owning user. Responses may include a populated user document.",
               oneOf: [
                 { type: "string" },
                 { $ref: "#/components/schemas/User" },
@@ -186,7 +188,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             uploadedAt: { type: "string", format: "date-time" },
             verifiedAt: { type: "string", format: "date-time", nullable: true },
             verifiedBy: {
-              description: "Staff member that verified the document. Responses may include a populated user document.",
+              description:
+                "Staff member that verified the document. Responses may include a populated user document.",
               oneOf: [
                 { type: "string", nullable: true },
                 { $ref: "#/components/schemas/User" },
@@ -239,14 +242,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
           },
-          required: [
-            "_id",
-            "code",
-            "name",
-            "status",
-            "createdAt",
-            "updatedAt",
-          ],
+          required: ["_id", "code", "name", "status", "createdAt", "updatedAt"],
         },
         StationInput: {
           type: "object",
@@ -324,7 +320,12 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               type: "object",
               nullable: true,
               properties: {
-                seatCount: { type: "integer", minimum: 1, maximum: 20, nullable: true },
+                seatCount: {
+                  type: "integer",
+                  minimum: 1,
+                  maximum: 20,
+                  nullable: true,
+                },
                 transmissionType: {
                   type: "string",
                   nullable: true,
@@ -338,11 +339,26 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
                     "other",
                   ],
                 },
-                airbagCount: { type: "integer", minimum: 0, maximum: 20, nullable: true },
-                horsepower: { type: "number", minimum: 0, maximum: 2000, nullable: true },
+                airbagCount: {
+                  type: "integer",
+                  minimum: 0,
+                  maximum: 20,
+                  nullable: true,
+                },
+                horsepower: {
+                  type: "number",
+                  minimum: 0,
+                  maximum: 2000,
+                  nullable: true,
+                },
                 motorType: { type: "string", nullable: true },
                 motorSupplier: { type: "string", nullable: true },
-                batteryCapacityKWh: { type: "number", minimum: 0, maximum: 500, nullable: true },
+                batteryCapacityKWh: {
+                  type: "number",
+                  minimum: 0,
+                  maximum: 500,
+                  nullable: true,
+                },
               },
             },
             createdAt: { type: "string", format: "date-time" },
@@ -393,7 +409,11 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
                 horsepower: { type: "number", minimum: 0, maximum: 2000 },
                 motorType: { type: "string" },
                 motorSupplier: { type: "string" },
-                batteryCapacityKWh: { type: "number", minimum: 0, maximum: 500 },
+                batteryCapacityKWh: {
+                  type: "number",
+                  minimum: 0,
+                  maximum: 500,
+                },
               },
             },
           },
@@ -404,7 +424,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           properties: {
             _id: { type: "string" },
             renter: {
-              description: "Renter reference. Responses populate the full user object.",
+              description:
+                "Renter reference. Responses populate the full user object.",
               oneOf: [
                 { type: "string" },
                 { $ref: "#/components/schemas/User" },
@@ -418,14 +439,16 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               ],
             },
             pickupStation: {
-              description: "Pickup station reference. Responses populate the full station object.",
+              description:
+                "Pickup station reference. Responses populate the full station object.",
               oneOf: [
                 { type: "string" },
                 { $ref: "#/components/schemas/Station" },
               ],
             },
             vehicle: {
-              description: "Assigned vehicle reference (optional). Responses populate the full vehicle object when available.",
+              description:
+                "Assigned vehicle reference (optional). Responses populate the full vehicle object when available.",
               oneOf: [
                 { type: "string", nullable: true },
                 { $ref: "#/components/schemas/Vehicle" },
@@ -446,7 +469,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               $ref: "#/components/schemas/BookingPricing",
             },
             availability: {
-              description: "Availability summary for the requested brand at the pickup station.",
+              description:
+                "Availability summary for the requested brand at the pickup station.",
               $ref: "#/components/schemas/BookingAvailability",
             },
             createdAt: { type: "string", format: "date-time" },
@@ -707,7 +731,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             surchargeAmount: { type: "number" },
             totalAmount: { type: "number" },
             pricing: {
-              description: "Convenience pricing summary duplicated from base/surcharge/total fields.",
+              description:
+                "Convenience pricing summary duplicated from base/surcharge/total fields.",
               $ref: "#/components/schemas/BookingPricing",
             },
             txnRef: { type: "string", nullable: true },
@@ -753,7 +778,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
         get: {
           tags: ["Health"],
           summary: "API root",
-          description: "Returns a simple message so uptime checks can verify the API is reachable.",
+          description:
+            "Returns a simple message so uptime checks can verify the API is reachable.",
           responses: {
             200: {
               description: "Root response",
@@ -1438,6 +1464,113 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           },
         },
       },
+      "/api/brands/by-station": {
+        get: {
+          tags: ["Brands"],
+          summary: "Get brands by station with availability",
+          description:
+            "Retrieve all brands with vehicle availability information for a specific station",
+          parameters: [
+            {
+              name: "stationId",
+              in: "query",
+              required: true,
+              description: "Station identifier to filter brands",
+              schema: { type: "string" },
+              example: "station-hcm-01",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Brands with availability information",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            _id: { type: "string" },
+                            name: { type: "string" },
+                            description: { type: "string" },
+                            baseDailyRate: { type: "number" },
+                            depositAmount: { type: "number" },
+                            imageUrl: { type: "string" },
+                            availability: {
+                              type: "object",
+                              properties: {
+                                status: {
+                                  type: "string",
+                                  enum: [
+                                    "available",
+                                    "out_of_stock",
+                                    "no_vehicles",
+                                  ],
+                                  description:
+                                    "Availability status: available (có xe sẵn), out_of_stock (hết xe), no_vehicles (không có xe tại station)",
+                                },
+                                totalVehicles: {
+                                  type: "number",
+                                  description:
+                                    "Total number of vehicles of this brand at the station",
+                                },
+                                availableVehicles: {
+                                  type: "number",
+                                  description: "Number of available vehicles",
+                                },
+                                rentedVehicles: {
+                                  type: "number",
+                                  description: "Number of rented vehicles",
+                                },
+                                maintenanceVehicles: {
+                                  type: "number",
+                                  description:
+                                    "Number of vehicles in maintenance",
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                    required: ["data"],
+                  },
+                  example: {
+                    data: [
+                      {
+                        _id: "brand123",
+                        name: "Tesla",
+                        description: "Premium electric vehicles",
+                        baseDailyRate: 2000000,
+                        depositAmount: 10000000,
+                        imageUrl: "https://example.com/tesla.jpg",
+                        availability: {
+                          status: "available",
+                          totalVehicles: 5,
+                          availableVehicles: 3,
+                          rentedVehicles: 1,
+                          maintenanceVehicles: 1,
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+            400: {
+              description: "stationId query parameter is required",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/brands/{id}": {
         get: {
           tags: ["Brands"],
@@ -1536,6 +1669,80 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           responses: {
             204: {
               description: "Brand removed",
+            },
+            404: {
+              description: "Brand not found",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/brands/{id}/vehicles/count": {
+        get: {
+          tags: ["Brands"],
+          summary: "Get brand with vehicle count",
+          description:
+            "Get brand information along with total count of vehicles for this brand",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              description: "Brand identifier",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: {
+              description: "Brand with vehicle count",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "object",
+                        properties: {
+                          brand: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string" },
+                              name: { type: "string" },
+                              description: { type: "string" },
+                              baseDailyRate: { type: "number" },
+                              depositAmount: { type: "number" },
+                              imageUrl: { type: "string" },
+                            },
+                          },
+                          totalVehicles: {
+                            type: "number",
+                            description:
+                              "Total number of vehicles for this brand",
+                          },
+                        },
+                      },
+                    },
+                    required: ["data"],
+                  },
+                  example: {
+                    data: {
+                      brand: {
+                        id: "brand123",
+                        name: "Tesla",
+                        description: "Premium electric vehicles",
+                        baseDailyRate: 2000000,
+                        depositAmount: 10000000,
+                        imageUrl: "https://example.com/tesla.jpg",
+                      },
+                      totalVehicles: 12,
+                    },
+                  },
+                },
+              },
             },
             404: {
               description: "Brand not found",

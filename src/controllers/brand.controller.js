@@ -1,5 +1,6 @@
 import Brand from "../models/brand.model.js";
 import Vehicle from "../models/vehicle.model.js";
+import mongoose from "mongoose";
 
 // LIST Brands
 export const listBrands = async (req, res, next) => {
@@ -168,12 +169,19 @@ export const deleteBrand = async (req, res, next) => {
 
 export const getBrandsByStation = async (req, res, next) => {
   try {
-    const { stationId } = req.query;
+    let { stationId } = req.query;
 
     if (!stationId) {
       return res.status(400).json({
         message: "stationId query parameter is required"
       });
+    }
+
+    // Convert stationId to ObjectId if it's a valid ObjectId string
+    // Otherwise keep it as string (for station code lookup)
+    let stationQuery = stationId;
+    if (mongoose.Types.ObjectId.isValid(stationId) && stationId.length === 24) {
+      stationQuery = new mongoose.Types.ObjectId(stationId);
     }
 
     // Lấy tất cả brands
@@ -185,27 +193,27 @@ export const getBrandsByStation = async (req, res, next) => {
         // Đếm tổng số xe của brand tại station
         const totalVehicles = await Vehicle.countDocuments({
           brand: brand._id,
-          stationId: stationId,
+          stationId: stationQuery,
         });
 
         // Đếm số xe available
         const availableVehicles = await Vehicle.countDocuments({
           brand: brand._id,
-          stationId: stationId,
+          stationId: stationQuery,
           status: "available",
         });
 
         // Đếm số xe đang được thuê
         const rentedVehicles = await Vehicle.countDocuments({
           brand: brand._id,
-          stationId: stationId,
+          stationId: stationQuery,
           status: "rented",
         });
 
         // Đếm số xe đang bảo trì
         const maintenanceVehicles = await Vehicle.countDocuments({
           brand: brand._id,
-          stationId: stationId,
+          stationId: stationQuery,
           status: "maintenance",
         });
 

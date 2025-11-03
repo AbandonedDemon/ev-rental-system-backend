@@ -10,8 +10,11 @@
     "deploy": "doppler run -- node src/server.js",
     "seed": "node src/scripts/seed.js",
     "seed:dev": "doppler run -- node src/scripts/seed.js",
+    "seed:prod": "node src/scripts/seed.js",
     "reset-db": "doppler run -- node src/scripts/reset-db.js",
-    "reseed": "npm run reset-db && npm run seed:dev"
+    "reset-db:prod": "node src/scripts/reset-db.js",
+    "reseed": "npm run reset-db && npm run seed:dev",
+    "reseed:prod": "npm run reset-db:prod && npm run seed:prod"
   },
   "repository": {
     "type": "git",

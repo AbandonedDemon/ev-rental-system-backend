@@ -166,38 +166,6 @@ export const deleteBrand = async (req, res, next) => {
   }
 };
 
-export const getBrandVehicleCount = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const brand = await Brand.findById(id).lean();
-
-    if (!brand) {
-      return res.status(404).json({ message: "Brand not found" });
-    }
-
-    const totalVehicles = await Vehicle.countDocuments({ brand: id });
-
-    const { _id: brandId, name, description, baseDailyRate, depositAmount, imageUrl } = brand;
-
-    return res.json({
-      data: {
-        brand: {
-          id: brandId.toString(),
-          name,
-          description,
-          baseDailyRate,
-          depositAmount,
-          imageUrl,
-        },
-        totalVehicles,
-      },
-    });
-  } catch (error) {
-    return next(error);
-  }
-};
-
 export const getBrandsByStation = async (req, res, next) => {
   try {
     const { stationId } = req.query;

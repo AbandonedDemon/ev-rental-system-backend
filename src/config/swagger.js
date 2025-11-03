@@ -495,19 +495,94 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
         BookingInput: {
           type: "object",
           properties: {
-            renter: { type: "string" },
-            pickupStation: { type: "string" },
-            vehicle: { type: "string" },
-            brand: { type: "string" },
-            pickupTimeExpected: { type: "string", format: "date-time" },
-            rentalDays: { type: "integer", minimum: 1 },
-            surchargeAmount: { type: "number", minimum: 0 },
+            // Thông tin khách hàng (required)
+            renterName: {
+              type: "string",
+              description: "Tên người thuê"
+            },
+            phoneNumber: {
+              type: "string",
+              pattern: "^0[0-9]{9}$",
+              description: "Số điện thoại (10 số bắt đầu bằng 0)"
+            },
+            email: {
+              type: "string",
+              format: "email",
+              description: "Email người thuê"
+            },
+            // Thông tin booking (required)
+            brand: {
+              type: "string",
+              description: "Brand ObjectId"
+            },
+            pickupStation: {
+              type: "string",
+              description: "Station code hoặc ObjectId"
+            },
+            pickupTimeExpected: {
+              type: "string",
+              format: "date-time",
+              description: "Thời gian nhận xe dự kiến"
+            },
+            rentalDays: {
+              type: "integer",
+              minimum: 1,
+              description: "Số ngày thuê"
+            },
+            paymentMethod: {
+              type: "string",
+              enum: ["online", "cash", "bank_transfer", "credit_card", "e_wallet"],
+              description: "Phương thức thanh toán"
+            },
+            agreedToPaymentTerms: {
+              type: "boolean",
+              description: "Đồng ý điều khoản thanh toán (phải true)"
+            },
+            agreedToDataSharing: {
+              type: "boolean",
+              description: "Đồng ý chia sẻ dữ liệu (phải true)"
+            },
+            // Optional fields
+            renter: {
+              type: "string",
+              nullable: true,
+              description: "User ObjectId (nếu đã đăng nhập)"
+            },
+            vehicle: {
+              type: "string",
+              nullable: true,
+              description: "Vehicle ObjectId (optional, để staff assign sau)"
+            },
+            surchargeAmount: {
+              type: "number",
+              minimum: 0,
+              default: 0,
+              description: "Phụ phí thêm"
+            },
             status: {
               type: "string",
-              enum: ["pending", "confirmed", "cancelled", "expired"],
+              enum: ["pending", "confirmed", "paid", "completed", "cancelled", "expired"],
+              default: "pending",
+              description: "Trạng thái booking"
             },
+            notes: {
+              type: "string",
+              nullable: true,
+              description: "Ghi chú"
+            }
           },
-          required: ["renter", "pickupStation", "brand", "pickupTimeExpected"],
+          required: [
+            "renterName",
+            "phoneNumber",
+            "email",
+            "brand",
+            "pickupStation",
+            "pickupTimeExpected",
+            "rentalDays",
+            "paymentMethod",
+            "agreedToPaymentTerms",
+            "agreedToDataSharing"
+          ],
         },
         BookingPricing: {
           type: "object",
@@ -1926,7 +2001,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           },
         },
       },
-      "/api/booking": {
+      "/api/bookings": {
         get: {
           tags: ["Bookings"],
           summary: "List bookings",
@@ -1987,7 +2062,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           },
         },
       },
-      "/api/booking/{id}": {
+      "/api/bookings/{id}": {
         get: {
           tags: ["Bookings"],
           summary: "Get booking",

@@ -26,55 +26,79 @@ const router = express.Router();
  *               - renterName
  *               - phoneNumber
  *               - email
- *               - brandId
- *               - stationId
- *               - pickupDate
- *               - pickupTime
- *               - returnDate
- *               - returnTime
+ *               - brand
+ *               - pickupStation
+ *               - pickupTimeExpected
+ *               - rentalDays
  *               - paymentMethod
  *               - agreedToPaymentTerms
  *               - agreedToDataSharing
  *             properties:
  *               renterName:
  *                 type: string
- *                 example: "Nguyen Thi Nhu Quynh"
+ *                 description: Tên người thuê
+ *                 example: "Như Quỳnh"
  *               phoneNumber:
  *                 type: string
- *                 example: "0912345678"
+ *                 description: Số điện thoại (10 số bắt đầu bằng 0)
+ *                 example: "0387815790"
  *               email:
  *                 type: string
- *                 example: "quynhntnss170152@fpt.edu.vn"
- *               brandId:
+ *                 description: Email người thuê
+ *                 example: "quynhtn2309@gmail.com"
+ *               brand:
  *                 type: string
- *                 example: "673e5c123456789abcdef012"
- *               stationId:
+ *                 description: Brand ObjectId
+ *                 example: "6907a4820222ed11d28fbe3a"
+ *               pickupStation:
  *                 type: string
- *                 example: "station-hn-01"
- *               pickupDate:
+ *                 description: Station code hoặc ObjectId
+ *                 example: "station-hcm-01"
+ *               pickupTimeExpected:
  *                 type: string
- *                 format: date
- *                 example: "2025-11-01"
- *               pickupTime:
- *                 type: string
- *                 example: "10:00"
- *               returnDate:
- *                 type: string
- *                 format: date
- *                 example: "2025-11-02"
- *               returnTime:
- *                 type: string
- *                 example: "10:00"
+ *                 format: date-time
+ *                 description: Thời gian nhận xe dự kiến
+ *                 example: "2025-11-12T03:00:00.000Z"
+ *               rentalDays:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Số ngày thuê
+ *                 example: 14
  *               paymentMethod:
  *                 type: string
  *                 enum: [online, cash, bank_transfer, credit_card, e_wallet]
- *                 example: "online"
+ *                 example: "bank_transfer"
  *               agreedToPaymentTerms:
  *                 type: boolean
+ *                 description: Đồng ý điều khoản thanh toán (phải true)
  *                 example: true
  *               agreedToDataSharing:
  *                 type: boolean
+ *                 description: Đồng ý chia sẻ dữ liệu (phải true)
  *                 example: true
+ *               renter:
+ *                 type: string
+ *                 description: User ObjectId (nếu đã đăng nhập)
+ *                 example: null
+ *               vehicle:
+ *                 type: string
+ *                 description: Vehicle ObjectId (optional, để staff assign sau)
+ *                 example: "6907a4830222ed11d28fbe48"
+ *               status:
+ *                 type: string
+ *                 enum: [pending, confirmed, paid, completed, cancelled, expired]
+ *                 default: pending
+ *                 example: "pending"
+ *               surchargeAmount:
+ *                 type: number
+ *                 minimum: 0
+ *                 default: 0
+ *                 description: Phụ phí thêm
+ *                 example: 0
+ *               notes:
+ *                 type: string
+ *                 description: Ghi chú
+ *                 example: null
  *     responses:
  *       201:
  *         description: Đặt xe thành công

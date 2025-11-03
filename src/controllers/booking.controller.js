@@ -59,7 +59,7 @@ const parseDateTime = (dateStr, timeStr) => {
 const validateBookingData = async (data) => {
   const errors = [];
 
-  // Validate required fields
+  // Validate customer info (từ form FE)
   if (!data.renterName?.trim()) {
     errors.push("Tên người thuê là bắt buộc");
   }
@@ -72,34 +72,30 @@ const validateBookingData = async (data) => {
     errors.push("Email không hợp lệ");
   }
 
-  if (!data.brandId) {
+  // Validate booking details
+  if (!data.brand) {
     errors.push("Brand ID là bắt buộc");
   }
 
-  if (!data.stationId) {
-    errors.push("Station ID là bắt buộc");
+  if (!data.pickupStation) {
+    errors.push("Pickup Station là bắt buộc");
   }
 
-  if (!data.pickupDate) {
-    errors.push("Ngày nhận xe là bắt buộc");
+  if (!data.pickupTimeExpected) {
+    errors.push("Thời gian nhận xe dự kiến là bắt buộc");
   }
 
-  if (!data.pickupTime?.match(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)) {
-    errors.push("Giờ nhận xe không hợp lệ (phải là HH:mm)");
+  if (!data.rentalDays || data.rentalDays <= 0) {
+    errors.push("Số ngày thuê phải lớn hơn 0");
   }
 
-  if (!data.returnDate) {
-    errors.push("Ngày trả xe là bắt buộc");
+  // Validate payment method
+  const validPaymentMethods = ["online", "cash", "bank_transfer", "credit_card", "e_wallet"];
+  if (!data.paymentMethod || !validPaymentMethods.includes(data.paymentMethod)) {
+    errors.push(`Phương thức thanh toán không hợp lệ. Chỉ chấp nhận: ${validPaymentMethods.join(", ")}`);
   }
 
-  if (!data.returnTime?.match(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)) {
-    errors.push("Giờ trả xe không hợp lệ (phải là HH:mm)");
-  }
-
-  if (!data.paymentMethod) {
-    errors.push("Phương thức thanh toán là bắt buộc");
-  }
-
+  // Validate agreements
   if (data.agreedToPaymentTerms !== true) {
     errors.push("Phải đồng ý với điều khoản thanh toán");
   }
@@ -108,21 +104,21 @@ const validateBookingData = async (data) => {
     errors.push("Phải đồng ý chia sẻ dữ liệu cá nhân");
   }
 
+  // Optional validation for vehicle if provided
+  if (data.vehicle && !mongoose.Types.ObjectId.isValid(data.vehicle)) {
+    errors.push("Vehicle ID không hợp lệ");
+  }
+
   if (errors.length > 0) {
     return { valid: false, errors };
   }
 
   // Validate dates
-  const pickupDateTime = parseDateTime(data.pickupDate, data.pickupTime);
-  const returnDateTime = parseDateTime(data.returnDate, data.returnTime);
+  const pickupDateTime = new Date(data.pickupTimeExpected);
   const now = new Date();
 
   if (pickupDateTime < now) {
-    errors.push("Ngày nhận xe không được trong quá khứ");
-  }
-
-  if (returnDateTime <= pickupDateTime) {
-    errors.push("Ngày trả xe phải sau ngày nhận xe");
+    errors.push("Thời gian nhận xe không được trong quá khứ");
   }
 
   if (errors.length > 0) {
@@ -130,7 +126,7 @@ const validateBookingData = async (data) => {
   }
 
   // Validate brand exists
-  const brand = await Brand.findById(data.brandId);
+  const brand = await Brand.findById(data.brand);
   if (!brand) {
     errors.push("Brand không tồn tại");
   } else if (!brand.isActive) {
@@ -139,22 +135,27 @@ const validateBookingData = async (data) => {
 
   // Validate station exists (support both ObjectId and code)
   let station;
-  if (mongoose.Types.ObjectId.isValid(data.stationId) && data.stationId.length === 24) {
+  if (mongoose.Types.ObjectId.isValid(data.pickupStation) && data.pickupStation.length === 24) {
     // If it's a valid ObjectId format
-    station = await Station.findById(data.stationId);
+    station = await Station.findById(data.pickupStation);
   } else {
     // If it's a station code (e.g., "station-hcm-01")
-    station = await Station.findOne({ code: data.stationId });
+    station = await Station.findOne({ code: data.pickupStation });
   }
 
   if (!station) {
     errors.push("Station không tồn tại");
   } else if (station.status !== "active") {
     errors.push("Station hiện không hoạt động");
-  }    // Validate payment method
-  const validPaymentMethods = ["online", "cash", "bank_transfer", "credit_card", "e_wallet"];
-  if (!validPaymentMethods.includes(data.paymentMethod)) {
-    errors.push(`Phương thức thanh toán không hợp lệ. Chỉ chấp nhận: ${validPaymentMethods.join(", ")}`);
+  }
+
+  // Validate vehicle exists if provided
+  let vehicle = null;
+  if (data.vehicle) {
+    vehicle = await Vehicle.findById(data.vehicle);
+    if (!vehicle) {
+      errors.push("Vehicle không tồn tại");
+    }
   }
 
   if (errors.length > 0) {
@@ -165,8 +166,8 @@ const validateBookingData = async (data) => {
     valid: true,
     brand,
     station,
+    vehicle,
     pickupDateTime,
-    returnDateTime,
   };
 };
 
@@ -178,21 +179,24 @@ export const createBooking = async (req, res, next) => {
     console.log('📥 Received booking request:', JSON.stringify(req.body, null, 2));
 
     const {
+      // Thông tin khách hàng (từ form FE)
       renterName,
       phoneNumber,
       email,
-      brandId,
-      stationId,
-      pickupDate,
-      pickupTime,
-      returnDate,
-      returnTime,
+      // Thông tin booking
+      brand,
+      pickupStation,
+      pickupTimeExpected,
+      rentalDays,
       paymentMethod,
       agreedToPaymentTerms,
       agreedToDataSharing,
-      pickupLocation, // Địa chỉ cụ thể nhận xe (optional)
-      promoCode, // Mã giới thiệu (optional)
-      notes, // Ghi chú (optional)
+      // Optional fields
+      renter = null,           // ObjectId nếu user đã đăng nhập
+      status = "pending",
+      surchargeAmount = 0,
+      vehicle = null,
+      notes = null,
     } = req.body;
 
     // Validate
@@ -200,15 +204,14 @@ export const createBooking = async (req, res, next) => {
       renterName,
       phoneNumber,
       email,
-      brandId,
-      stationId,
-      pickupDate,
-      pickupTime,
-      returnDate,
-      returnTime,
+      brand,
+      pickupStation,
+      pickupTimeExpected,
+      rentalDays,
       paymentMethod,
       agreedToPaymentTerms,
       agreedToDataSharing,
+      vehicle,
     });
 
     if (!validation.valid) {
@@ -220,67 +223,80 @@ export const createBooking = async (req, res, next) => {
       });
     }
 
-    const { brand, station, pickupDateTime, returnDateTime } = validation;
+    const { brand: brandDoc, station, vehicle: vehicleDoc, pickupDateTime } = validation;
 
-    // Tính số ngày và giá
-    const rentalDays = calculateRentalDays(pickupDateTime, returnDateTime);
-    const pricing = calculatePricing(brand, rentalDays, pickupDateTime, returnDateTime);
+    // Tính ngày trả xe dự kiến
+    const returnTimeExpected = new Date(pickupDateTime);
+    returnTimeExpected.setDate(returnTimeExpected.getDate() + rentalDays);
 
-    // Tạo booking
+    // Tính giá chi tiết sử dụng logic có sẵn
+    const pricing = calculatePricing(brandDoc, rentalDays, pickupDateTime, returnTimeExpected);
+
+    // Map pricing sang format mới
+    const baseAmount = pricing.basePrice;
+    const depositAmount = pricing.depositAmount;
+    const additionalFees = pricing.additionalFees; // Phụ phí cuối tuần
+    const totalAmount = pricing.totalPayable + surchargeAmount; // Tổng + phụ phí thêm
+
+    // Tạo booking với format phù hợp model hiện tại
     const booking = await Booking.create({
-      renterName,
-      phoneNumber,
-      email,
-      brand: brand._id,
+      // Thông tin người thuê
+      renter: renter || null,
+      renterName: renterName.trim(),
+      phoneNumber: phoneNumber.trim(),
+      email: email.toLowerCase().trim(),
+
+      // Thông tin booking
+      brand: brandDoc._id,
       pickupStation: station._id,
-      pickupDate: new Date(pickupDate),
-      pickupTime,
-      returnDate: new Date(returnDate),
-      returnTime,
-      pickupDateTime,
-      returnDateTime,
+      vehicle: vehicleDoc?._id || null,
+
+      // Thời gian - map từ pickupTimeExpected sang format model
+      pickupDate: new Date(pickupDateTime.toDateString()),  // Chỉ lấy date part
+      pickupTime: pickupDateTime.toTimeString().slice(0, 5), // HH:mm format
+      returnDate: new Date(returnTimeExpected.toDateString()), // Chỉ lấy date part
+      returnTime: returnTimeExpected.toTimeString().slice(0, 5), // HH:mm format
+      pickupDateTime: pickupDateTime,     // Full datetime
+      returnDateTime: returnTimeExpected, // Full datetime
+
       rentalDays,
-      basePrice: pricing.basePrice,
-      additionalFees: pricing.additionalFees,
-      totalRentalFee: pricing.totalRentalFee,
-      depositAmount: pricing.depositAmount,
-      totalPayable: pricing.totalPayable,
+
+      // Giá cả - theo format model hiện tại
+      basePrice: baseAmount,
+      additionalFees: additionalFees,
+      totalRentalFee: baseAmount + additionalFees,
+      depositAmount: depositAmount,
+      totalPayable: totalAmount,
+
+      // Thông tin khác
       paymentMethod,
+      notes,
       agreedToPaymentTerms,
       agreedToDataSharing,
-      pickupLocation: pickupLocation || null,
-      promoCode: promoCode || null,
-      notes: notes || null,
-      status: "pending", // Chờ thanh toán
+      status,
     });
 
     // Populate để trả về đầy đủ thông tin
     const populatedBooking = await Booking.findById(booking._id)
+      .populate("renter", "fullName email phoneNumber")
       .populate("brand", "name code baseDailyRate depositAmount")
-      .populate("pickupStation", "name code address");
+      .populate("pickupStation", "name code address")
+      .populate("vehicle", "vin plateNo model batteryPercent status");
 
-    // Format response
-    const response = {
+    res.status(201).json({
       success: true,
-      message: "Đặt xe thành công",
+      message: "Tạo booking thành công",
       data: {
         _id: populatedBooking._id,
         bookingCode: populatedBooking.bookingCode,
         renterName: populatedBooking.renterName,
         phoneNumber: populatedBooking.phoneNumber,
         email: populatedBooking.email,
-        brand: {
-          _id: populatedBooking.brand._id,
-          name: populatedBooking.brand.name,
-          code: populatedBooking.brand.code,
-        },
-        station: {
-          _id: populatedBooking.pickupStation._id,
-          name: populatedBooking.pickupStation.name,
-          code: populatedBooking.pickupStation.code,
-        },
-        pickupDateTime: populatedBooking.pickupDateTime,
-        returnDateTime: populatedBooking.returnDateTime,
+        brand: populatedBooking.brand,
+        pickupStation: populatedBooking.pickupStation,
+        vehicle: populatedBooking.vehicle,
+        pickupTimeExpected: populatedBooking.pickupTimeExpected,
+        returnTimeExpected: populatedBooking.returnTimeExpected,
         rentalDays: populatedBooking.rentalDays,
         pricing: {
           basePrice: populatedBooking.basePrice,
@@ -290,15 +306,11 @@ export const createBooking = async (req, res, next) => {
           totalPayable: populatedBooking.totalPayable,
         },
         paymentMethod: populatedBooking.paymentMethod,
-        pickupLocation: populatedBooking.pickupLocation,
-        promoCode: populatedBooking.promoCode,
-        notes: populatedBooking.notes,
         status: populatedBooking.status,
+        notes: populatedBooking.notes,
         createdAt: populatedBooking.createdAt,
       },
-    };
-
-    res.status(201).json(response);
+    });
   } catch (error) {
     console.error('❌ Booking creation error:', error);
     console.error('Error stack:', error.stack);

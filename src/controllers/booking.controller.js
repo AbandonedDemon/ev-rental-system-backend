@@ -3,6 +3,7 @@ import Booking from "../models/booking.model.js";
 import Brand from "../models/brand.model.js";
 import Station from "../models/station.model.js";
 import Vehicle from "../models/vehicle.model.js";
+import { manualReleaseReservation } from "../services/reservationService.js";
 
 /**
  * Tính số ngày thuê
@@ -51,6 +52,71 @@ const parseDateTime = (dateStr, timeStr) => {
   const [hours, minutes] = timeStr.split(":");
   date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
   return date;
+};
+
+/**
+ * Reserve một vehicle cụ thể cho booking
+ * Đổi trạng thái vehicle từ "available" → "reserved"
+ */
+const reserveVehicle = async (vehicleId, bookingId) => {
+  try {
+    // Tìm vehicle và check status
+    const vehicle = await Vehicle.findById(vehicleId);
+    if (!vehicle) {
+      throw new Error("Vehicle không tồn tại");
+    }
+
+    if (vehicle.status !== "available") {
+      throw new Error(`Vehicle ${vehicle.plateNo} đang ở trạng thái: ${vehicle.status}`);
+    }
+
+    // Tính thời gian reservation (30 phút để user thanh toán)
+    const reservedUntil = new Date();
+    reservedUntil.setMinutes(reservedUntil.getMinutes() + 30);
+
+    // Update vehicle status to reserved
+    vehicle.status = "reserved";
+    vehicle.reservedBy = bookingId;
+    vehicle.reservedUntil = reservedUntil;
+
+    await vehicle.save();
+
+    console.log(`🔒 Vehicle reserved: ${vehicle.plateNo} until ${reservedUntil.toISOString()}`);
+    return vehicle;
+
+  } catch (error) {
+    console.error("❌ Reserve vehicle failed:", error.message);
+    return null;
+  }
+};
+
+/**
+ * Tự động tìm và reserve xe available theo brand/station
+ */
+const autoAssignAndReserveVehicle = async (brandId, stationId, bookingId) => {
+  try {
+    // Tìm vehicle available cùng brand và station
+    const vehicle = await Vehicle.findOne({
+      brand: brandId,
+      stationId: stationId,
+      status: "available"
+    }).sort({
+      batteryPercent: -1,  // Ưu tiên xe pin cao
+      createdAt: 1         // Hoặc xe cũ nhất (FIFO)
+    });
+
+    if (!vehicle) {
+      console.log(`⚠️ No available vehicle found for brand ${brandId} at station ${stationId}`);
+      return null;
+    }
+
+    // Reserve vehicle này
+    return await reserveVehicle(vehicle._id, bookingId);
+
+  } catch (error) {
+    console.error("❌ Auto assign vehicle failed:", error.message);
+    return null;
+  }
 };
 
 /**
@@ -276,6 +342,26 @@ export const createBooking = async (req, res, next) => {
       status,
     });
 
+    // 🚗 AUTO-RESERVE VEHICLE: Giữ xe trong quá trình thanh toán (giống ghế rạp)
+    let reservedVehicle = null;
+    if (vehicleDoc) {
+      // Nếu user đã chọn xe cụ thể, reserve ngay lập tức
+      reservedVehicle = await reserveVehicle(vehicleDoc._id, booking._id);
+    } else {
+      // Nếu chưa chọn xe, tự động tìm và reserve xe available cùng brand/station
+      reservedVehicle = await autoAssignAndReserveVehicle(brandDoc._id, station._id, booking._id);
+    }
+
+    if (reservedVehicle) {
+      // Update booking với vehicle đã reserve
+      booking.vehicle = reservedVehicle._id;
+      await booking.save();
+
+      console.log(`✅ Vehicle reserved: ${reservedVehicle.plateNo} (${reservedVehicle._id}) for booking ${booking.bookingCode}`);
+    } else {
+      console.log(`⚠️ No vehicle available to reserve for booking ${booking.bookingCode}`);
+    }
+
     // Populate để trả về đầy đủ thông tin
     const populatedBooking = await Booking.findById(booking._id)
       .populate("renter", "fullName email phoneNumber")
@@ -285,7 +371,7 @@ export const createBooking = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: "Tạo booking thành công",
+      message: reservedVehicle ? "Tạo booking và reserve xe thành công" : "Tạo booking thành công (chưa có xe available)",
       data: {
         _id: populatedBooking._id,
         bookingCode: populatedBooking.bookingCode,
@@ -309,6 +395,16 @@ export const createBooking = async (req, res, next) => {
         status: populatedBooking.status,
         notes: populatedBooking.notes,
         createdAt: populatedBooking.createdAt,
+        // 🚗 Thông tin reservation
+        reservation: reservedVehicle ? {
+          vehicleReserved: true,
+          reservedUntil: reservedVehicle.reservedUntil,
+          paymentTimeLimit: "30 phút",
+          message: `Xe ${reservedVehicle.plateNo} đã được giữ cho bạn. Vui lòng thanh toán trong 30 phút.`
+        } : {
+          vehicleReserved: false,
+          message: "Hiện không có xe available. Chúng tôi sẽ gán xe khi có xe trống."
+        }
       },
     });
   } catch (error) {
@@ -412,12 +508,18 @@ export const cancelBooking = async (req, res, next) => {
       });
     }
 
+    // 🔓 Release reservation nếu có xe đang được reserve
+    const releaseResult = await manualReleaseReservation(booking._id);
+    if (releaseResult) {
+      console.log(`🔓 Released reservation for cancelled booking ${booking.bookingCode}`);
+    }
+
     booking.status = "cancelled";
     await booking.save();
 
     res.json({
       success: true,
-      message: "Hủy booking thành công",
+      message: "Hủy booking thành công" + (releaseResult ? " và đã trả xe về available" : ""),
       data: booking,
     });
   } catch (error) {
@@ -574,18 +676,11 @@ export const updateBookingStatus = async (req, res, next) => {
     }
 
     // CANCELLED: Hủy booking
-    // Nếu đã gán xe nhưng chưa paid, trả vehicle về available
+    // Sử dụng reservation service để release xe
     if (status === "cancelled") {
-      if (booking.vehicle) {
-        const vehicle = await Vehicle.findById(booking.vehicle);
-        // Chỉ trả về available nếu chưa paid (chưa rented)
-        if (vehicle && vehicle.status === "available") {
-          // Vehicle đã gán nhưng user chưa thanh toán, không cần làm gì
-        } else if (vehicle && vehicle.status === "rented" && currentStatus !== "completed") {
-          // Nếu đã thanh toán (rented) thì trả về available
-          vehicle.status = "available";
-          await vehicle.save();
-        }
+      const releaseResult = await manualReleaseReservation(booking._id);
+      if (releaseResult) {
+        console.log(`🔓 Released reservation for cancelled booking ${booking.bookingCode}`);
       }
 
       // TODO: Cancel/refund Payment nếu đã paid

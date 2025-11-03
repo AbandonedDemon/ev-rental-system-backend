@@ -15,6 +15,7 @@ import userRoutes from "./routes/user.routes.js";
 import userDocumentRoutes from "./routes/userDocument.routes.js";
 import vehicleRoutes from "./routes/vehicle.routes.js";
 import corsMiddleware from "./middleware/cors.middleware.js";
+import { startBackgroundJobs } from "./services/backgroundJobs.js";
 
 dotenv.config();
 
@@ -74,6 +75,9 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
+
+      // 🚀 Khởi động background jobs sau khi server đã sẵn sàng
+      startBackgroundJobs();
     });
   } catch (error) {
     console.error("Server start failed:", error.message);

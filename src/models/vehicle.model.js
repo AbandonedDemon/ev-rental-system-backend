@@ -38,8 +38,19 @@ const vehicleSchema = new mongoose.Schema(
     status: {
       type: String,
       trim: true,
-      enum: ["available", "maintenance", "rented", "unavailable"],
+      enum: ["available", "reserved", "rented", "maintenance", "unavailable"],
       default: "available",
+    },
+    reservedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      default: null,
+      description: "Booking ID that reserved this vehicle"
+    },
+    reservedUntil: {
+      type: Date,
+      default: null,
+      description: "Reservation expires at this time"
     },
     odometer: {
       type: Number,

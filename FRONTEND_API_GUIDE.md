@@ -327,6 +327,8 @@ const createBooking = async (bookingData) => {
   });
   return response.json();
 };
+// Luu y: Backend chi chap nhan renterId neu currentUser.status === "verified".
+// Neu status khac, API se tra 403 va thong bao hoan tat xac minh giay to.
 
 const fetchMyBookings = async () => {
   const response = await fetch(

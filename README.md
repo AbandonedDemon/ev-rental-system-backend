@@ -830,6 +830,8 @@ Content-Type: application/json
 - `promoCode`: Mã giới thiệu/khuyến mãi
 - `notes`: Ghi chú thêm
 
+**Luu y:** Chi chap nhan renterId khi tai khoan user co status = `verified`.
+
 **Response**:
 
 ```json

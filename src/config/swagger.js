@@ -552,6 +552,11 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               nullable: true,
               description: "User ObjectId (nếu đã đăng nhập)"
             },
+            renterId: {
+              type: "string",
+              nullable: true,
+              description: "Alias of renter. Nếu gửi cả renter lẫn renterId thì renterId được ưu tiên."
+            },
             vehicle: {
               type: "string",
               nullable: true,
@@ -2121,6 +2126,44 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
         get: {
           tags: ["Bookings"],
           summary: "List bookings",
+          parameters: [
+            {
+              name: "status",
+              in: "query",
+              description: "Filter by booking status",
+              schema: {
+                type: "string",
+                enum: ["pending", "confirmed", "paid", "completed", "cancelled", "expired"],
+              },
+            },
+            {
+              name: "email",
+              in: "query",
+              description: "Filter by renter email (exact match)",
+              schema: { type: "string", format: "email" },
+            },
+            {
+              name: "phoneNumber",
+              in: "query",
+              description: "Filter by renter phone number",
+              schema: { type: "string" },
+            },
+            {
+              name: "bookingCode",
+              in: "query",
+              description: "Filter by booking code",
+              schema: { type: "string" },
+            },
+            {
+              name: "renterId",
+              in: "query",
+              description: "Filter by renter ObjectId (aliases: renter, userId)",
+              schema: {
+                type: "string",
+                pattern: "^[0-9a-fA-F]{24}$",
+              },
+            },
+          ],
           responses: {
             200: {
               description: "Array of bookings",

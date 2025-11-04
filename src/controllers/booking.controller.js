@@ -175,6 +175,10 @@ const validateBookingData = async (data) => {
     errors.push("Vehicle ID không hợp lệ");
   }
 
+  if (data.renter && !mongoose.Types.ObjectId.isValid(data.renter)) {
+    errors.push("Renter ID không hợp lệ");
+  }
+
   if (errors.length > 0) {
     return { valid: false, errors };
   }
@@ -265,6 +269,20 @@ export const createBooking = async (req, res, next) => {
       notes = null,
     } = req.body;
 
+    const resolveObjectIdInput = (value) => {
+      if (typeof value !== "string") {
+        return null;
+      }
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    };
+
+    const normalizedRenter =
+      resolveObjectIdInput(renter) ??
+      resolveObjectIdInput(req.body?.renterId) ??
+      resolveObjectIdInput(req.body?.userId) ??
+      null;
+
     // Validate
     const validation = await validateBookingData({
       renterName,
@@ -278,6 +296,7 @@ export const createBooking = async (req, res, next) => {
       agreedToPaymentTerms,
       agreedToDataSharing,
       vehicle,
+      renter: normalizedRenter,
     });
 
     if (!validation.valid) {
@@ -307,7 +326,7 @@ export const createBooking = async (req, res, next) => {
     // Tạo booking với format phù hợp model hiện tại
     const booking = await Booking.create({
       // Thông tin người thuê
-      renter: renter || null,
+      renter: normalizedRenter ? new mongoose.Types.ObjectId(normalizedRenter) : null,
       renterName: renterName.trim(),
       phoneNumber: phoneNumber.trim(),
       email: email.toLowerCase().trim(),
@@ -432,6 +451,36 @@ export const createBooking = async (req, res, next) => {
 export const listBookings = async (req, res, next) => {
   try {
     const filter = {};
+
+    const resolveQueryObjectId = (...values) => {
+      for (const value of values) {
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (trimmed) {
+            return trimmed;
+          }
+        }
+      }
+      return null;
+    };
+
+    const renterQuery = resolveQueryObjectId(
+      req.query.renterId,
+      req.query.renter,
+      req.query.userId,
+      req.query.renter_id,
+      req.query.user_id
+    );
+
+    if (renterQuery) {
+      if (!mongoose.Types.ObjectId.isValid(renterQuery)) {
+        return res.status(400).json({
+          success: false,
+          message: "renterId không hợp lệ (phải là ObjectId 24 ký tự).",
+        });
+      }
+      filter.renter = new mongoose.Types.ObjectId(renterQuery);
+    }
 
     if (req.query.status) {
       filter.status = req.query.status;

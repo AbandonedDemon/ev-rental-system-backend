@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PayOS } from "@payos/node";
 
 const payos = new PayOS({

@@ -73,6 +73,13 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
       },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
       schemas: {
         ErrorResponse: {
           type: "object",
@@ -123,17 +130,20 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             fullName: { type: "string" },
             email: { type: "string", format: "email" },
             phone: { type: "string", nullable: true },
-            passwordHash: {
-              type: "string",
-              description: "BCrypt hash stored for authentication.",
-            },
             role: {
               type: "string",
               enum: ["renter", "staff", "admin"],
             },
             status: {
               type: "string",
-              enum: ["active", "inactive", "suspended"],
+              enum: [
+                "pending_documents",
+                "documents_submitted",
+                "verified",
+                "active",
+                "inactive",
+                "suspended",
+              ],
             },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
@@ -142,7 +152,6 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             "_id",
             "fullName",
             "email",
-            "passwordHash",
             "role",
             "status",
             "createdAt",
@@ -555,7 +564,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             renterId: {
               type: "string",
               nullable: true,
-              description: "Alias of renter. Nếu gửi cả renter lẫn renterId thì renterId được ưu tiên."
+              description:
+                "Alias of renter. Nếu gửi cả renter lẫn renterId thì renterId được ưu tiên. User phải có status = verified."
             },
             vehicle: {
               type: "string",
@@ -1077,6 +1087,38 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             },
             409: {
               description: "User already exists",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/users/me": {
+        get: {
+          tags: ["Users"],
+          summary: "Get current user",
+          description: "Returns the authenticated user's profile.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Authenticated user profile",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: { $ref: "#/components/schemas/User" },
+                    },
+                    required: ["data"],
+                  },
+                },
+              },
+            },
+            401: {
+              description: "Authentication required or invalid token",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/ErrorResponse" },

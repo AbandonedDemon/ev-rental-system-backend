@@ -3,6 +3,7 @@ import Booking from "../models/booking.model.js";
 import Brand from "../models/brand.model.js";
 import Station from "../models/station.model.js";
 import Vehicle from "../models/vehicle.model.js";
+import User from "../models/user.model.js";
 import { manualReleaseReservation } from "../services/reservationService.js";
 
 /**
@@ -308,6 +309,25 @@ export const createBooking = async (req, res, next) => {
       });
     }
 
+    let renterDoc = null;
+    if (normalizedRenter) {
+      renterDoc = await User.findById(normalizedRenter);
+      if (!renterDoc) {
+        return res.status(404).json({
+          success: false,
+          message: "Renter not found",
+        });
+      }
+
+      if (renterDoc.status !== "verified") {
+        return res.status(403).json({
+          success: false,
+          message: "Tài khoản chưa được xác minh giấy tờ. Không thể đặt xe.",
+          detail: "Vui lòng hoàn tất hồ sơ và chờ nhân viên duyệt.",
+        });
+      }
+    }
+
     const { brand: brandDoc, station, vehicle: vehicleDoc, pickupDateTime } = validation;
 
     // Tính ngày trả xe dự kiến
@@ -326,7 +346,7 @@ export const createBooking = async (req, res, next) => {
     // Tạo booking với format phù hợp model hiện tại
     const booking = await Booking.create({
       // Thông tin người thuê
-      renter: normalizedRenter ? new mongoose.Types.ObjectId(normalizedRenter) : null,
+      renter: renterDoc ? renterDoc._id : null,
       renterName: renterName.trim(),
       phoneNumber: phoneNumber.trim(),
       email: email.toLowerCase().trim(),

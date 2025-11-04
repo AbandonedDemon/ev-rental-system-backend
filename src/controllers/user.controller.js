@@ -9,6 +9,13 @@ export const sanitizeUser = (userDoc) => {
   return user;
 };
 
+export const getCurrentUser = async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  return res.json({ data: sanitizeUser(req.user) });
+};
+
 export const listUsers = async (req, res, next) => {
   try {
     const users = await User.find().sort({ createdAt: -1, _id: -1 });
@@ -89,6 +96,7 @@ export const deleteUser = async (req, res, next) => {
 };
 
 export default {
+  getCurrentUser,
   listUsers,
   getUser,
   createUser,

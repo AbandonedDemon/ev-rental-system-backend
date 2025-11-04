@@ -676,15 +676,16 @@ GET /api/bookings
 
 **Query Parameters**:
 
-- `status`: `pending_payment`, `confirmed`, `cancelled`, `completed`, `expired`
+- `status`: `pending`, `confirmed`, `paid`, `completed`, `cancelled`, `expired`
 - `email`: Filter by email
 - `phoneNumber`: Filter by phone number
 - `bookingCode`: Filter by booking code
+- `renterId`: Mongo ObjectId c?a user (aliases: `renter`, `userId`)
 
 **Example**:
 
 ```http
-GET /api/bookings?status=pending_payment&email=customer@example.com
+GET /api/bookings?renterId=673e5c1234567890abcdef01
 ```
 
 **Response**:
@@ -824,6 +825,7 @@ Content-Type: application/json
 
 **Optional Fields**:
 
+- `renterId`: ObjectId cua user (neu khach dang dang nhap, aliases: `renter`, `userId`)
 - `pickupLocation`: Địa chỉ cụ thể nhận xe
 - `promoCode`: Mã giới thiệu/khuyến mãi
 - `notes`: Ghi chú thêm

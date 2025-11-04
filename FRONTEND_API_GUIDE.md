@@ -316,7 +316,7 @@ const createBooking = async (bookingData) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      user: currentUser._id,
+      renterId: currentUser._id,
       brand: selectedBrand._id,        // ← Lấy từ API, KHÔNG hardcode
       vehicle: selectedVehicle._id,    // ← Lấy từ API, KHÔNG hardcode
       pickupStationId: stationId,
@@ -325,6 +325,13 @@ const createBooking = async (bookingData) => {
       endDate: endDate
     })
   });
+  return response.json();
+};
+
+const fetchMyBookings = async () => {
+  const response = await fetch(
+    `${API_BASE_URL}/api/bookings?renterId=${currentUser._id}`
+  );
   return response.json();
 };
 ```

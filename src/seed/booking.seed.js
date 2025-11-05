@@ -1,4 +1,5 @@
 import Booking from "../models/booking.model.js";
+import { BOOKING_STATUS } from "../constants/statusCodes.js";
 
 const DEFAULT_BOOKINGS = [
   {
@@ -8,7 +9,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: "EVR-2024-0001",
     brandCode: "TESLA-M3",
     pickupTimeExpected: new Date("2024-06-01T08:00:00.000Z"),
-    status: "confirmed",
+    status: BOOKING_STATUS.SUCCESS,
     rentalDays: 3,
     surchargeAmount: 50000,
   },
@@ -19,7 +20,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: null,
     brandCode: "NISSAN-LEAF",
     pickupTimeExpected: new Date("2024-07-10T09:00:00.000Z"),
-    status: "pending",
+    status: BOOKING_STATUS.PENDING_APPROVAL,
     rentalDays: 2,
   },
   {
@@ -29,7 +30,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: "EVR-2024-0005",
     brandCode: "KIA-EV6",
     pickupTimeExpected: new Date("2024-08-05T02:00:00.000Z"),
-    status: "confirmed",
+    status: BOOKING_STATUS.SUCCESS,
     rentalDays: 5,
   },
   {
@@ -39,7 +40,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: "EVR-2024-0003",
     brandCode: "VINFAST-VF-E34",
     pickupTimeExpected: new Date("2024-08-17T02:30:00.000Z"),
-    status: "confirmed",
+    status: BOOKING_STATUS.SUCCESS,
     rentalDays: 4,
     surchargeAmount: 30000,
   },
@@ -50,7 +51,7 @@ const DEFAULT_BOOKINGS = [
     vehicleVin: "EVR-2024-0006",
     brandCode: "VINFAST-VF3",
     pickupTimeExpected: new Date("2025-10-20T03:00:00.000Z"),
-    status: "pending",
+    status: BOOKING_STATUS.PENDING_APPROVAL,
     rentalDays: 3,
   },
 ];

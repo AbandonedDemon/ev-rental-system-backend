@@ -2,6 +2,7 @@ import payos from "../config/payos.js";
 import Booking from "../models/booking.model.js";
 import { confirmBookingOnPending } from "../utils/bookingConfirmation.js";
 import PaymentIntent from "../models/paymentIntent.model.js";
+import { BOOKING_STATUS } from "../constants/statusCodes.js";
 
 export const createCheckout = async (req, res, next) => {
   try {
@@ -18,11 +19,11 @@ export const createCheckout = async (req, res, next) => {
       if (confirmError.message === "Booking not found") {
         return res.status(404).json({ message: "Booking not found" });
       }
-      if (confirmError.message === "Booking is not in pending status") {
+      if (confirmError.message === "Booking is not in a confirmable status") {
         return res.status(409).json({
-          message: "Booking is not in pending status and cannot be confirmed",
+          message: "Booking is not in a confirmable status",
           detail:
-            "The booking may already be confirmed, cancelled, or completed",
+            "The booking may already be awaiting payment, cancelled, or completed",
         });
       }
       if (confirmError.message === "No vehicle assigned to booking") {
@@ -52,10 +53,10 @@ export const createCheckout = async (req, res, next) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    if (booking.status !== "confirmed") {
+    if (booking.status !== BOOKING_STATUS.WAITING_PAYMENT) {
       return res
         .status(409)
-        .json({ message: "Booking must be confirmed before payment" });
+        .json({ message: "Booking must be waiting for payment before checkout" });
     }
 
     const amount = Number(booking.totalPayable);

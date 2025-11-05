@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { VEHICLE_STATUS } from "../constants/statusCodes.js";
 
 const vehicleSchema = new mongoose.Schema(
   {
@@ -38,8 +39,42 @@ const vehicleSchema = new mongoose.Schema(
     status: {
       type: String,
       trim: true,
-      enum: ["available", "reserved", "rented", "maintenance", "unavailable"],
-      default: "available",
+      enum: Object.values(VEHICLE_STATUS),
+      default: VEHICLE_STATUS.AVAILABLE,
+    },
+    lastStatusChangedAt: {
+      type: Date,
+      default: null,
+    },
+    statusHistory: {
+      type: [
+        {
+          status: {
+            type: String,
+            enum: Object.values(VEHICLE_STATUS),
+          },
+          changedAt: {
+            type: Date,
+            default: Date.now,
+          },
+          changedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+          note: {
+            type: String,
+            trim: true,
+            default: null,
+          },
+        },
+      ],
+      default: undefined,
+    },
+    maintenanceNotes: {
+      type: String,
+      trim: true,
+      default: null,
     },
     reservedBy: {
       type: mongoose.Schema.Types.ObjectId,

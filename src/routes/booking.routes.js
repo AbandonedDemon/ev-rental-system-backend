@@ -86,9 +86,9 @@ const router = express.Router();
  *                 example: "6907a4830222ed11d28fbe48"
  *               status:
  *                 type: string
- *                 enum: [pending, confirmed, paid, completed, cancelled, expired]
- *                 default: pending
- *                 example: "pending"
+ *                 enum: [CREATED, PENDING_APPROVAL, APPROVED, REJECTED, WAITING_PAYMENT, PAID, PAYMENT_FAILED, CANCELLED, SUCCESS]
+ *                 default: PENDING_APPROVAL
+ *                 example: "PENDING_APPROVAL"
  *               surchargeAmount:
  *                 type: number
  *                 minimum: 0
@@ -118,7 +118,7 @@ router.post("/", createBooking);
  *         name: status
  *         schema:
  *           type: string
- *           enum: [pending_payment, confirmed, cancelled, completed, expired]
+ *           enum: [PENDING_APPROVAL, APPROVED, WAITING_PAYMENT, PAID, PAYMENT_FAILED, CANCELLED, SUCCESS]
  *       - in: query
  *         name: email
  *         schema:
@@ -184,21 +184,19 @@ router.put("/:id/cancel", cancelBooking);
  * /api/bookings/{id}/status:
  *   put:
  *     summary: Cập nhật trạng thái booking (Staff/Admin only)
- *     description: |
- *       **Flow trạng thái booking:**
- *       1. `pending` - User tạo booking chọn Brand (chưa có xe cụ thể)
- *       2. `confirmed` - Staff xác nhận và GÁN XE cụ thể cho booking
- *       3. `paid` - User thấy xe đã gán, thanh toán thành công (tạo Rental)
- *       4. `completed` - Hoàn thành thuê xe, trả xe
- *       5. `cancelled` - Hủy booking (trả xe nếu đã gán)
- *       6. `expired` - Hết hạn (quá pickupDateTime mà vẫn pending)
- *       
- *       **Business Rules:**
- *       - `confirmed`: pending → confirmed (bắt buộc vehicleId, xe vẫn available)
- *       - `paid`: confirmed → paid (xe → rented, tạo Rental)
- *       - `completed`: paid → completed (xe → available, kết thúc Rental)
- *       - `cancelled`: any → cancelled (trả xe về available nếu cần)
- *       - `expired`: pending → expired (tự động bởi cron job)
+  *     description: |
+  *       **Flow trạng thái booking:**
+  *       1. `CREATED` → `PENDING_APPROVAL` (khách gửi yêu cầu đặt xe)
+  *       2. `APPROVED` → `WAITING_PAYMENT` (staff phê duyệt, hệ thống chờ thanh toán)
+  *       3. `PAID` → `SUCCESS` (sau khi thanh toán và tạo rental)
+  *       4. `PAYMENT_FAILED` / `CANCELLED` (tự động hoặc staff huỷ)
+  *       
+  *       **Business Rules:**
+  *       - `APPROVED`: PENDING_APPROVAL → APPROVED (yêu cầu vehicleId, xe vẫn available/reserved)
+  *       - `WAITING_PAYMENT`: APPROVED → WAITING_PAYMENT (hệ thống chuyển sang chờ thanh toán)
+  *       - `PAID`: WAITING_PAYMENT → PAID (xe → rented, chuẩn bị tạo rental)
+  *       - `SUCCESS`: PAID → SUCCESS (hoàn tất flow, rental đã tạo)
+  *       - `CANCELLED` / `PAYMENT_FAILED`: có thể set từ các bước trước để huỷ đơn
  *     tags: [Bookings]
  *     security:
  *       - bearerAuth: []
@@ -217,13 +215,13 @@ router.put("/:id/cancel", cancelBooking);
  *             required:
  *               - status
  *             properties:
- *               status:
- *                 type: string
- *                 enum: [pending, confirmed, paid, completed, cancelled, expired]
- *                 example: "confirmed"
- *               vehicleId:
- *                 type: string
- *                 description: Required khi status = "confirmed"
+  *               status:
+  *                 type: string
+  *                 enum: [PENDING_APPROVAL, APPROVED, REJECTED, WAITING_PAYMENT, PAID, PAYMENT_FAILED, CANCELLED, SUCCESS]
+  *                 example: "APPROVED"
+  *               vehicleId:
+  *                 type: string
+  *                 description: Required khi status = "APPROVED"
  *                 example: "673e5c123456789abcdef999"
  *     responses:
  *       200:

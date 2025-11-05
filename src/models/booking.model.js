@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { BOOKING_STATUS } from "../constants/statusCodes.js";
 
 const bookingSchema = new mongoose.Schema(
   {
@@ -127,6 +128,39 @@ const bookingSchema = new mongoose.Schema(
       enum: ["online", "cash", "bank_transfer", "credit_card", "e_wallet"],
       required: true,
     },
+    paymentReference: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    paymentDueAt: {
+      type: Date,
+      default: null,
+    },
+    paidAt: {
+      type: Date,
+      default: null,
+    },
+    paymentFailedAt: {
+      type: Date,
+      default: null,
+    },
+    reservationExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    successAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    expiredAt: {
+      type: Date,
+      default: null,
+    },
 
     // Đồng ý điều khoản
     agreedToPaymentTerms: {
@@ -149,8 +183,60 @@ const bookingSchema = new mongoose.Schema(
     // Trạng thái
     status: {
       type: String,
-      enum: ["pending", "confirmed", "paid", "completed", "cancelled", "expired"],
-      default: "pending",
+      enum: Object.values(BOOKING_STATUS),
+      default: BOOKING_STATUS.CREATED,
+    },
+    lastStatusChangedAt: {
+      type: Date,
+      default: null,
+    },
+    statusHistory: {
+      type: [
+        {
+          status: {
+            type: String,
+            enum: Object.values(BOOKING_STATUS),
+          },
+          changedAt: {
+            type: Date,
+            default: Date.now,
+          },
+          changedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+          note: {
+            type: String,
+            trim: true,
+            default: null,
+          },
+        },
+      ],
+      default: undefined,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    rejectedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      default: null,
     },
 
     // Mã booking tự động
@@ -168,6 +254,9 @@ const bookingSchema = new mongoose.Schema(
 
 // Generate booking code trước khi save
 bookingSchema.pre("save", async function (next) {
+  if (!this.lastStatusChangedAt) {
+    this.lastStatusChangedAt = new Date();
+  }
   if (!this.bookingCode) {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");

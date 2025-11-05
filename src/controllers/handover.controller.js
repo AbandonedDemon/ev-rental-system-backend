@@ -4,6 +4,14 @@ import Rental from "../models/rental.model.js";
 import Vehicle from "../models/vehicle.model.js";
 import Station from "../models/station.model.js";
 import User from "../models/user.model.js";
+import {
+  RENTAL_STATUS,
+  VEHICLE_STATUS,
+} from "../constants/statusCodes.js";
+import {
+  applyRentalStatus,
+  updateVehicleByRentalStatus,
+} from "../services/rentalStatus.js";
 
 const HANDOVER_POPULATE = [
   { path: "rental" },
@@ -111,23 +119,61 @@ export const createHandover = async (req, res, next) => {
     const handover = await Handover.create(handoverPayload);
 
     if (type === "pickup") {
-      rentalDoc.status = "ongoing";
+      const now = new Date();
       rentalDoc.pickupStation = stationDoc._id;
-      rentalDoc.pickupTime = rentalDoc.pickupTime ?? new Date();
+      rentalDoc.handoverPickup = handover._id;
+      rentalDoc.pickupTime = rentalDoc.pickupTime ?? now;
       if (odoReading !== undefined) {
         rentalDoc.odoStart = odoReading;
       }
-      vehicleDoc.status = "rented";
+      applyRentalStatus(rentalDoc, RENTAL_STATUS.IN_PROGRESS, {
+        userId: staffDoc._id,
+        note: "Vehicle handed over to customer",
+        timestamp: now,
+      });
+      updateVehicleByRentalStatus(vehicleDoc, RENTAL_STATUS.IN_PROGRESS, stationDoc.code ?? stationDoc._id);
     }
 
     if (type === "return") {
-      rentalDoc.status = "completed";
+      const now = new Date();
+      const damageFlag =
+        req.body.isDamaged === true ||
+        req.body.damageStatus === "damaged" ||
+        Boolean(req.body.damageNotes) ||
+        Boolean(req.body.damages);
+
       rentalDoc.returnStation = stationDoc._id;
-      rentalDoc.returnTime = new Date();
+      rentalDoc.handoverReturn = handover._id;
+      applyRentalStatus(rentalDoc, RENTAL_STATUS.RETURNED, {
+        userId: staffDoc._id,
+        note: "Vehicle returned to station",
+        timestamp: now,
+      });
+
       if (odoReading !== undefined) {
         rentalDoc.odoEnd = odoReading;
       }
-      vehicleDoc.status = "available";
+
+      if (damageFlag) {
+        applyRentalStatus(rentalDoc, RENTAL_STATUS.DAMAGED, {
+          userId: staffDoc._id,
+          note: req.body.damageNotes ?? notes ?? "Damage reported on return",
+          timestamp: now,
+        });
+        updateVehicleByRentalStatus(
+          vehicleDoc,
+          RENTAL_STATUS.DAMAGED,
+          stationDoc.code ?? stationDoc._id,
+          req.body.damageNotes ?? notes ?? null,
+        );
+      } else {
+        applyRentalStatus(rentalDoc, RENTAL_STATUS.COMPLETED, {
+          userId: staffDoc._id,
+          note: "Rental completed after return",
+          timestamp: now,
+        });
+        updateVehicleByRentalStatus(vehicleDoc, RENTAL_STATUS.COMPLETED, stationDoc.code ?? stationDoc._id);
+      }
     }
 
     if (notes) {
@@ -137,7 +183,9 @@ export const createHandover = async (req, res, next) => {
     if (batteryPercent !== undefined) {
       vehicleDoc.batteryPercent = batteryPercent;
     }
-    vehicleDoc.stationId = stationDoc._id;
+    if (stationDoc?.code ?? stationDoc?._id) {
+      vehicleDoc.stationId = stationDoc.code ?? stationDoc._id;
+    }
 
     await Promise.all([rentalDoc.save(), vehicleDoc.save()]);
 

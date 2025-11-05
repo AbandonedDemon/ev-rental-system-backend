@@ -1,5 +1,9 @@
 import Vehicle from "../models/vehicle.model.js";
 import Booking from "../models/booking.model.js";
+import {
+  VEHICLE_STATUS,
+  BOOKING_STATUS,
+} from "../constants/statusCodes.js";
 
 /**
  * Service để quản lý reservation timeout
@@ -18,14 +22,14 @@ export const releaseReservation = async (vehicleId, reason = "timeout") => {
             return false;
         }
 
-        if (vehicle.status !== "reserved") {
+        if (vehicle.status !== VEHICLE_STATUS.RESERVED) {
             console.log(`⚠️ Vehicle ${vehicle.plateNo} is not reserved (status: ${vehicle.status})`);
             return false;
         }
 
         // Update vehicle back to available
         const oldReservedBy = vehicle.reservedBy;
-        vehicle.status = "available";
+        vehicle.status = VEHICLE_STATUS.AVAILABLE;
         vehicle.reservedBy = null;
         vehicle.reservedUntil = null;
         await vehicle.save();
@@ -33,10 +37,33 @@ export const releaseReservation = async (vehicleId, reason = "timeout") => {
         // Update booking status to expired (if exists and still pending)
         if (oldReservedBy) {
             const booking = await Booking.findById(oldReservedBy);
-            if (booking && booking.status === "pending") {
-                booking.status = "expired";
+            if (
+              booking &&
+              [BOOKING_STATUS.PENDING_APPROVAL, BOOKING_STATUS.WAITING_PAYMENT, BOOKING_STATUS.APPROVED].includes(
+                booking.status
+              )
+            ) {
+                const now = new Date();
+                booking.statusHistory = booking.statusHistory ?? [];
+                booking.statusHistory.push({
+                  status: BOOKING_STATUS.PAYMENT_FAILED,
+                  changedAt: now,
+                  changedBy: null,
+                  note: `Reservation released (${reason})`,
+                });
+                booking.paymentFailedAt = now;
+                booking.statusHistory.push({
+                  status: BOOKING_STATUS.CANCELLED,
+                  changedAt: now,
+                  changedBy: null,
+                  note: "Auto cancel after reservation release",
+                });
+                booking.markModified?.("statusHistory");
+                booking.status = BOOKING_STATUS.CANCELLED;
+                booking.cancelledAt = now;
+                booking.lastStatusChangedAt = now;
                 await booking.save();
-                console.log(`⏰ Booking ${booking.bookingCode} expired due to ${reason}`);
+                console.log(`⏰ Booking ${booking.bookingCode} cancelled due to ${reason}`);
             }
         }
 
@@ -58,7 +85,7 @@ export const checkExpiredReservations = async () => {
 
         // Tìm tất cả vehicles có reservation đã hết hạn
         const expiredVehicles = await Vehicle.find({
-            status: "reserved",
+            status: VEHICLE_STATUS.RESERVED,
             reservedUntil: { $lt: now }
         });
 
@@ -88,7 +115,7 @@ export const manualReleaseReservation = async (bookingId) => {
     try {
         // Tìm vehicle được reserve bởi booking này
         const vehicle = await Vehicle.findOne({
-            status: "reserved",
+            status: VEHICLE_STATUS.RESERVED,
             reservedBy: bookingId
         });
 
@@ -112,7 +139,7 @@ export const getReservationStatus = async (bookingId) => {
     try {
         const vehicle = await Vehicle.findOne({
             reservedBy: bookingId,
-            status: "reserved"
+            status: VEHICLE_STATUS.RESERVED
         });
 
         if (!vehicle) {

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { RENTAL_STATUS } from "../constants/statusCodes.js";
 
 const rentalSchema = new mongoose.Schema(
   {
@@ -12,6 +13,11 @@ const rentalSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    staff: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     vehicle: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
@@ -22,6 +28,14 @@ const rentalSchema = new mongoose.Schema(
       ref: "Station",
       required: true,
     },
+    plannedPickupTime: {
+      type: Date,
+      default: null,
+    },
+    plannedReturnTime: {
+      type: Date,
+      default: null,
+    },
     returnStation: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Station",
@@ -29,9 +43,17 @@ const rentalSchema = new mongoose.Schema(
     },
     pickupTime: {
       type: Date,
-      required: true,
+      default: null,
     },
     returnTime: {
+      type: Date,
+      default: null,
+    },
+    actualStartTime: {
+      type: Date,
+      default: null,
+    },
+    actualEndTime: {
       type: Date,
       default: null,
     },
@@ -47,6 +69,45 @@ const rentalSchema = new mongoose.Schema(
     },
     conditionNotes: {
       type: String,
+      default: null,
+    },
+    note: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    handoverPickup: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Handover",
+      default: null,
+    },
+    handoverReturn: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Handover",
+      default: null,
+    },
+    readyAt: {
+      type: Date,
+      default: null,
+    },
+    lateDetectedAt: {
+      type: Date,
+      default: null,
+    },
+    returnedAt: {
+      type: Date,
+      default: null,
+    },
+    damagedAt: {
+      type: Date,
+      default: null,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
       default: null,
     },
     baseAmount: {
@@ -106,8 +167,33 @@ const rentalSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["ongoing", "completed", "cancelled", "overdue"],
-      default: "ongoing",
+      enum: Object.values(RENTAL_STATUS),
+      default: RENTAL_STATUS.CREATED,
+    },
+    statusHistory: {
+      type: [
+        {
+          status: {
+            type: String,
+            enum: Object.values(RENTAL_STATUS),
+          },
+          changedAt: {
+            type: Date,
+            default: Date.now,
+          },
+          changedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+          note: {
+            type: String,
+            trim: true,
+            default: null,
+          },
+        },
+      ],
+      default: undefined,
     },
   },
   {

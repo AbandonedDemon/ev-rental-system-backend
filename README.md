@@ -676,7 +676,7 @@ GET /api/bookings
 
 **Query Parameters**:
 
-- `status`: `pending`, `confirmed`, `paid`, `completed`, `cancelled`, `expired`
+- `status`: `PENDING_APPROVAL`, `APPROVED`, `WAITING_PAYMENT`, `PAID`, `PAYMENT_FAILED`, `CANCELLED`, `SUCCESS`
 - `email`: Filter by email
 - `phoneNumber`: Filter by phone number
 - `bookingCode`: Filter by booking code
@@ -719,7 +719,7 @@ GET /api/bookings?renterId=673e5c1234567890abcdef01
       "totalRentalFee": 690000,
       "depositAmount": 2000000,
       "totalPayable": 2690000,
-      "status": "pending_payment"
+     "status": "WAITING_PAYMENT"
     }
   ]
 }
@@ -777,7 +777,7 @@ GET /api/bookings/:bookingId
     "notes": "Cần xe sạch sẽ",
     "agreedToPaymentTerms": true,
     "agreedToDataSharing": true,
-    "status": "pending_payment",
+    "status": "WAITING_PAYMENT",
     "createdAt": "2025-10-31T12:00:00.000Z"
   }
 }
@@ -868,7 +868,7 @@ Content-Type: application/json
     "pickupLocation": "123 Main St, District 1",
     "promoCode": "NEWUSER10",
     "notes": "Cần xe sạch sẽ",
-    "status": "pending_payment",
+    "status": "WAITING_PAYMENT",
     "createdAt": "2025-10-31T12:00:00.000Z"
   }
 }
@@ -967,7 +967,9 @@ Content-Type: application/json
 
 ### 8️⃣ Payment APIs
 
-#### 📋 List Payments
+**Trạng thái:** `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`
+
+#### 💳 List Payments
 
 ```http
 GET /api/payments
@@ -982,21 +984,29 @@ Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "rental": "rental-id",
-  "amount": 4350000,
-  "paymentMethod": "credit_card"
+  "booking": "booking-id",
+  "method": "cash",
+  "status": "SUCCESS"
 }
 ```
 
-**Payment Methods**:
+- Sử dụng khi staff thu tiền trực tiếp; nếu `status = SUCCESS`, backend tự chuyển booking sang `PAID`.
+- Có thể đặt `status = "PENDING"` để giữ hóa đơn chờ xác nhận, hoặc thêm `skipBookingUpdate = true` để giữ nguyên trạng thái booking.
 
-- `credit_card`
-- `debit_card`
-- `cash`
-- `bank_transfer`
-- `e_wallet`
+#### 🧪 Test Checkout (Fake)
 
----
+```http
+POST /api/payments/checkout/test
+Content-Type: application/json
+
+{
+  "bookingId": "<booking ObjectId>",
+  "method": "wallet"
+}
+```
+
+- Dùng để fake thanh toán khi PayOS chưa tích hợp.
+- Yêu cầu booking đang ở `WAITING_PAYMENT`; backend tạo payment `SUCCESS` và chuyển booking sang `PAID`.
 
 ### 9️⃣ Handover APIs
 
@@ -1927,7 +1937,7 @@ export default BookingForm;
   agreedToDataSharing: Boolean,  // Required: true
 
   // Trạng thái
-  status: String,                // "pending_payment" | "confirmed" | "cancelled" | "completed" | "expired"
+  status: String,                // "CREATED" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "WAITING_PAYMENT" | "PAID" | "PAYMENT_FAILED" | "CANCELLED" | "SUCCESS"
 
   // Timestamps
   createdAt: Date,
@@ -1937,11 +1947,10 @@ export default BookingForm;
 
 **Booking Status Flow**:
 
-1. `pending_payment` - Mới tạo, chờ thanh toán
-2. `confirmed` - Đã thanh toán, chờ nhận xe
-3. `completed` - Đã hoàn thành
-4. `cancelled` - Đã hủy
-5. `expired` - Hết hạn (quá thời gian pickup)
+1. `CREATED` → `PENDING_APPROVAL` - Khách gửi yêu cầu đặt xe
+2. `APPROVED` → `WAITING_PAYMENT` - Staff xác nhận, hệ thống chờ thanh toán
+3. `PAID` → `SUCCESS` - Thanh toán hoàn tất và rental được tạo
+4. `PAYMENT_FAILED` / `CANCELLED` - Timeout hoặc nhân viên hủy yêu cầu
 
 **Pricing Calculation**:
 
@@ -1960,7 +1969,7 @@ export default BookingForm;
   actualStartDate: Date,
   actualEndDate: Date,
   totalAmount: Number,
-  status: String             // "active" | "completed" | "cancelled"
+  status: String             // "CREATED" | "READY_FOR_PICKUP" | "IN_PROGRESS" | "LATE" | "RETURNED" | "DAMAGED" | "COMPLETED" | "CANCELLED"
 }
 ```
 
@@ -1968,11 +1977,18 @@ export default BookingForm;
 
 ```javascript
 {
-  rental: ObjectId,          // ref: Rental
-  amount: Number,
-  paymentMethod: String,     // "credit_card" | "cash" | "bank_transfer" | "e_wallet"
-  status: String,            // "pending" | "completed" | "failed" | "refunded"
-  transactionId: String
+  booking: ObjectId,          // ref: Booking
+  rental: ObjectId | null,    // ref: Rental (optional)
+  processedBy: ObjectId | null, // ref: User (staff processor)
+  method: String,             // "cash" | "card" | "wallet" | "transfer"
+  status: String,             // "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED"
+  baseAmount: Number,         // Base rental charges
+  depositAmount: Number,      // Security deposit amount
+  surchargeAmount: Number,    // Additional fees applied
+  totalAmount: Number,        // Sum of base + deposit + surcharge
+  txnRef: String,             // Gateway reference or manual note
+  createdAt: Date,
+  updatedAt: Date
 }
 ```
 
@@ -2161,3 +2177,4 @@ MIT License - See LICENSE file for details
 **Last Updated**: November 1, 2025  
 **Version**: 1.0.0  
 **Status**: ✅ Production Ready
+

@@ -4,6 +4,7 @@ import PaymentIntent from "../models/paymentIntent.model.js";
 import Booking from "../models/booking.model.js";
 import { createPayment as createPaymentController } from "../controllers/payment.controller.js";
 import { updateBookingStatus as updateBookingStatusController } from "../controllers/booking.controller.js"; // we’ll reuse it
+import { BOOKING_STATUS, PAYMENT_STATUS } from "../constants/statusCodes.js";
 
 const verifySig = (data, signature) => {
   const key = process.env.PAYOS_CHECKSUM_KEY;
@@ -27,7 +28,7 @@ export const webhook = async (req, res) => {
 
     const existingPaid = await mongoose.connection
       .collection("payments")
-      .findOne({ txnRef: orderCode, status: "paid" });
+      .findOne({ txnRef: orderCode, status: PAYMENT_STATUS.SUCCESS });
     if (existingPaid) return res.sendStatus(200);
 
     const session = await mongoose.startSession();
@@ -37,7 +38,7 @@ export const webhook = async (req, res) => {
           session,
         );
         if (!booking) throw new Error("Booking not found");
-        if (booking.status !== "confirmed") {
+        if (booking.status !== BOOKING_STATUS.WAITING_PAYMENT) {
           // be strict: your flow requires confirmed → paid
           throw new Error(`Unexpected booking status: ${booking.status}`);
         }
@@ -46,8 +47,9 @@ export const webhook = async (req, res) => {
           body: {
             booking: booking._id.toString(),
             method: "transfer",
-            status: "paid",
+            status: PAYMENT_STATUS.SUCCESS,
             txnRef: orderCode,
+            skipBookingUpdate: true,
           },
         };
         await new Promise((resolve, reject) => {
@@ -57,7 +59,7 @@ export const webhook = async (req, res) => {
 
         const fauxReq2 = {
           params: { id: booking._id.toString() },
-          body: { status: "paid" },
+          body: { status: BOOKING_STATUS.PAID },
         };
         await new Promise((resolve, reject) => {
           const fauxRes2 = { json: () => resolve(), status: () => fauxRes2 };

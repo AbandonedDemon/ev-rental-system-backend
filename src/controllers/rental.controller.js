@@ -3,6 +3,13 @@ import Booking from "../models/booking.model.js";
 import Vehicle from "../models/vehicle.model.js";
 import Payment from "../models/payment.model.js";
 import { createCrudHandlers } from "../utils/crudFactory.js";
+import {
+  BOOKING_STATUS,
+  RENTAL_STATUS,
+  VEHICLE_STATUS,
+  PAYMENT_STATUS,
+} from "../constants/statusCodes.js";
+import { applyRentalStatus, updateVehicleByRentalStatus } from "../services/rentalStatus.js";
 
 const extractId = (value) => {
   if (!value) {
@@ -36,6 +43,34 @@ const { list, get, remove } = createCrudHandlers(Rental, {
   populate: RENTAL_POPULATE,
 });
 
+const RENTAL_STATUS_SET = new Set(Object.values(RENTAL_STATUS));
+const LEGACY_RENTAL_STATUS_MAP = new Map([
+  ["ongoing", RENTAL_STATUS.IN_PROGRESS],
+  ["completed", RENTAL_STATUS.COMPLETED],
+  ["cancelled", RENTAL_STATUS.CANCELLED],
+  ["canceled", RENTAL_STATUS.CANCELLED],
+  ["overdue", RENTAL_STATUS.LATE],
+]);
+
+const normalizeRentalStatusValue = (value) => {
+  if (!value) {
+    return null;
+  }
+  const str = String(value).trim();
+  if (!str) {
+    return null;
+  }
+  const upper = str.toUpperCase();
+  if (RENTAL_STATUS_SET.has(upper)) {
+    return upper;
+  }
+  const lower = str.toLowerCase();
+  if (LEGACY_RENTAL_STATUS_MAP.has(lower)) {
+    return LEGACY_RENTAL_STATUS_MAP.get(lower);
+  }
+  return null;
+};
+
 const ensureVehicleForBooking = async (booking, requestedVehicleId) => {
   if (!booking) {
     return {
@@ -59,7 +94,7 @@ const ensureVehicleForBooking = async (booking, requestedVehicleId) => {
       return { error: { status: 404, message: "Vehicle not found" } };
     }
 
-    if (vehicle.status !== "available") {
+    if (vehicle.status !== VEHICLE_STATUS.AVAILABLE) {
       return {
         error: { status: 409, message: "Vehicle is not available for rental" },
       };
@@ -85,14 +120,14 @@ const ensureVehicleForBooking = async (booking, requestedVehicleId) => {
     vehicle = await Vehicle.findOne({
       brand: bookingBrandId,
       stationId: stationCode,
-      status: "available",
+      status: VEHICLE_STATUS.AVAILABLE,
     }).sort({ createdAt: 1, _id: 1 });
   }
 
   if (!vehicle) {
     vehicle = await Vehicle.findOne({
       brand: bookingBrandId,
-      status: "available",
+      status: VEHICLE_STATUS.AVAILABLE,
     }).sort({ createdAt: 1, _id: 1 });
   }
 
@@ -188,10 +223,10 @@ export const createRental = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid booking specified" });
     }
 
-    if (booking.status !== "confirmed") {
+    if (![BOOKING_STATUS.PAID, BOOKING_STATUS.SUCCESS].includes(booking.status)) {
       return res
         .status(409)
-        .json({ message: "Booking must be confirmed before creating rental" });
+        .json({ message: "Booking must be paid before creating rental" });
     }
 
     const { vehicle, error } = await ensureVehicleForBooking(
@@ -205,7 +240,11 @@ export const createRental = async (req, res, next) => {
 
     const pickupStationCode = booking.pickupStation?.code ?? null;
 
-    vehicle.status = "rented";
+    updateVehicleByRentalStatus(
+      vehicle,
+      RENTAL_STATUS.READY_FOR_PICKUP,
+      pickupStationCode,
+    );
     if (pickupStationCode) {
       vehicle.stationId = pickupStationCode;
     }
@@ -220,7 +259,7 @@ export const createRental = async (req, res, next) => {
 
     const paidPayments = await Payment.find({
       booking: booking._id,
-      status: "paid",
+      status: PAYMENT_STATUS.SUCCESS,
     });
 
     const paidAmount = paidPayments.reduce(
@@ -234,7 +273,8 @@ export const createRental = async (req, res, next) => {
         .json({ message: "Booking has not been fully paid yet" });
     }
 
-    const rentalPayload = {
+    const now = new Date();
+    const rental = await Rental.create({
       ...req.body,
       booking: booking._id,
       renter: booking.renter?._id ?? booking.renter,
@@ -253,18 +293,47 @@ export const createRental = async (req, res, next) => {
       lateFeeAmount: 0,
       amountDue: 0,
       refundAmount: 0,
-    };
+      plannedPickupTime: booking.pickupDateTime ?? null,
+      plannedReturnTime: booking.returnDateTime ?? null,
+      actualStartTime: req.body.actualStartTime ?? null,
+      actualEndTime: req.body.actualEndTime ?? null,
+      staff: req.body.staff ?? null,
+      status: RENTAL_STATUS.CREATED,
+      statusHistory: [],
+    });
 
-    const rental = await Rental.create(rentalPayload);
+    applyRentalStatus(rental, RENTAL_STATUS.CREATED, {
+      userId: req.user?._id ?? null,
+      note: "Rental created",
+      timestamp: now,
+    });
+
+    applyRentalStatus(rental, RENTAL_STATUS.READY_FOR_PICKUP, {
+      userId: req.user?._id ?? null,
+      note: "Vehicle ready for pickup",
+      timestamp: now,
+    });
+
+    await rental.save();
     await Payment.updateMany(
-      { booking: booking._id, status: "paid", rental: null },
+      { booking: booking._id, status: PAYMENT_STATUS.SUCCESS, rental: null },
       { rental: rental._id }
     );
 
-    if (booking.status !== "confirmed") {
-      booking.status = "confirmed";
-      await booking.save();
-    }
+    const statusUpdateAt = new Date();
+    booking.statusHistory = booking.statusHistory ?? [];
+    booking.statusHistory.push({
+      status: BOOKING_STATUS.SUCCESS,
+      changedAt: statusUpdateAt,
+      changedBy: req.user?._id ?? null,
+      note: "Rental created",
+    });
+    booking.markModified?.("statusHistory");
+    booking.status = BOOKING_STATUS.SUCCESS;
+    booking.successAt = statusUpdateAt;
+    booking.lastStatusChangedAt = statusUpdateAt;
+    booking.reservationExpiresAt = null;
+    await booking.save();
 
     const populated = await rental.populate(RENTAL_POPULATE);
 
@@ -287,8 +356,15 @@ export const updateRental = async (req, res, next) => {
       "pickupStation",
       "returnStation",
       "conditionNotes",
-      "status",
       "extraChargeNotes",
+      "note",
+      "plannedPickupTime",
+      "plannedReturnTime",
+      "actualStartTime",
+      "actualEndTime",
+      "staff",
+      "readyAt",
+      "returnedAt",
     ];
 
     updatableFields.forEach((field) => {
@@ -296,6 +372,17 @@ export const updateRental = async (req, res, next) => {
         rental[field] = req.body[field];
       }
     });
+
+    if (req.body.status !== undefined) {
+      const normalizedStatus = normalizeRentalStatusValue(req.body.status);
+      if (!normalizedStatus) {
+        return res.status(400).json({ message: "Invalid rental status" });
+      }
+      applyRentalStatus(rental, normalizedStatus, {
+        userId: req.user?._id ?? null,
+        note: req.body.statusNote ?? null,
+      });
+    }
 
     if (req.body.extraCharges !== undefined) {
       rental.extraCharges = normalizeCurrency(req.body.extraCharges, rental.extraCharges ?? 0);
@@ -322,9 +409,14 @@ export const updateRental = async (req, res, next) => {
       rental.lateDays = Math.max(0, Math.round(parsedLateDays ?? 0));
     }
 
+    let vehicleForStatus = null;
+    if (req.body.status !== undefined && rental.vehicle) {
+      vehicleForStatus = await Vehicle.findById(rental.vehicle);
+    }
+
     const paidPayments = await Payment.find({
       booking: rental.booking,
-      status: "paid",
+      status: PAYMENT_STATUS.SUCCESS,
     });
 
     rental.paidAmount = paidPayments.reduce(
@@ -336,13 +428,39 @@ export const updateRental = async (req, res, next) => {
 
     if (
       req.body.returnTime &&
-      !req.body.status &&
-      rental.status === "ongoing"
+      req.body.status === undefined &&
+      rental.status === RENTAL_STATUS.IN_PROGRESS
     ) {
-      rental.status = "completed";
+      applyRentalStatus(rental, RENTAL_STATUS.RETURNED, {
+        userId: req.user?._id ?? null,
+        note: req.body.statusNote ?? "Marked returned based on returnTime update",
+      });
     }
 
     await rental.save();
+
+    if (vehicleForStatus) {
+      const stationRef =
+        req.body.returnStation ??
+        rental.returnStation ??
+        rental.pickupStation ??
+        null;
+
+      const stationValue =
+        stationRef && stationRef.code
+          ? stationRef.code
+          : stationRef && stationRef._id
+          ? stationRef._id
+          : stationRef;
+
+      updateVehicleByRentalStatus(
+        vehicleForStatus,
+        rental.status,
+        stationValue,
+        req.body.damageNotes ?? rental.note ?? null,
+      );
+      await vehicleForStatus.save();
+    }
 
     rental = await rental.populate(RENTAL_POPULATE);
 

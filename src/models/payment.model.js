@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { PAYMENT_STATUS } from "../constants/statusCodes.js";
 
 const paymentSchema = new mongoose.Schema(
   {
@@ -24,8 +25,8 @@ const paymentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "paid", "failed", "refunded"],
-      default: "pending",
+      enum: Object.values(PAYMENT_STATUS),
+      default: PAYMENT_STATUS.PENDING,
     },
     baseAmount: {
       type: Number,

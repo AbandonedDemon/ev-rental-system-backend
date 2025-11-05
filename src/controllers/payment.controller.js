@@ -3,6 +3,7 @@ import Booking from "../models/booking.model.js";
 import Rental from "../models/rental.model.js";
 import User from "../models/user.model.js";
 import { createCrudHandlers } from "../utils/crudFactory.js";
+import { BOOKING_STATUS, PAYMENT_STATUS } from "../constants/statusCodes.js";
 
 const PAYMENT_RELATIONS = [
   {
@@ -114,6 +115,65 @@ const computeBookingPricing = (booking, overrideSurcharge) => {
   };
 };
 
+const syncBookingWithPaymentStatus = (
+  booking,
+  paymentStatus,
+  { actorId = null, txnRef = null, note = null } = {},
+) => {
+  if (!booking) {
+    return false;
+  }
+
+  const now = new Date();
+  booking.statusHistory = booking.statusHistory ?? [];
+
+  switch (paymentStatus) {
+    case PAYMENT_STATUS.SUCCESS: {
+      booking.statusHistory.push({
+        status: BOOKING_STATUS.PAID,
+        changedAt: now,
+        changedBy: actorId,
+        note: note ?? "Payment confirmed",
+      });
+      booking.markModified?.("statusHistory");
+      booking.status = BOOKING_STATUS.PAID;
+      booking.paidAt = now;
+      booking.paymentReference = txnRef ?? booking.paymentReference ?? null;
+      booking.paymentFailedAt = null;
+      booking.lastStatusChangedAt = now;
+      booking.reservationExpiresAt = null;
+      return true;
+    }
+    case PAYMENT_STATUS.FAILED: {
+      booking.statusHistory.push({
+        status: BOOKING_STATUS.PAYMENT_FAILED,
+        changedAt: now,
+        changedBy: actorId,
+        note: note ?? "Payment failed",
+      });
+      booking.markModified?.("statusHistory");
+      booking.paymentFailedAt = now;
+      booking.lastStatusChangedAt = now;
+      return true;
+    }
+    case PAYMENT_STATUS.REFUNDED: {
+      booking.statusHistory.push({
+        status: BOOKING_STATUS.CANCELLED,
+        changedAt: now,
+        changedBy: actorId,
+        note: note ?? "Payment refunded",
+      });
+      booking.markModified?.("statusHistory");
+      booking.status = BOOKING_STATUS.CANCELLED;
+      booking.cancelledAt = now;
+      booking.lastStatusChangedAt = now;
+      return true;
+    }
+    default:
+      return false;
+  }
+};
+
 export const listPayments = list;
 export const getPayment = get;
 export const deletePayment = remove;
@@ -131,10 +191,10 @@ export const createPayment = async (req, res, next) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    if (booking.status !== "confirmed") {
+    if (![BOOKING_STATUS.WAITING_PAYMENT, BOOKING_STATUS.APPROVED].includes(booking.status)) {
       return res
         .status(409)
-        .json({ message: "Booking must be confirmed before payment" });
+        .json({ message: "Booking must be awaiting payment before creating a receipt" });
     }
 
     let rentalDoc = null;
@@ -152,16 +212,16 @@ export const createPayment = async (req, res, next) => {
       }
     }
 
-    const existingPaidPayment = await Payment.findOne({
+    const existingPaymentRecord = await Payment.findOne({
       booking: booking._id,
-      status: "paid",
+      status: { $in: [PAYMENT_STATUS.SUCCESS, PAYMENT_STATUS.PENDING] },
       rental: null,
     });
 
-    if (existingPaidPayment && !rentalDoc) {
+    if (existingPaymentRecord && !rentalDoc) {
       return res
         .status(409)
-        .json({ message: "Booking already has a completed payment" });
+        .json({ message: "Booking already has a pending or completed payment" });
     }
 
     let processedById = null;
@@ -181,9 +241,11 @@ export const createPayment = async (req, res, next) => {
         .json({ message: pricing.error.message });
     }
 
+    const skipBookingUpdate = req.body.skipBookingUpdate === true;
+
     const paymentPayload = {
       method: req.body.method,
-      status: req.body.status ?? "paid",
+      status: req.body.status ?? PAYMENT_STATUS.SUCCESS,
       txnRef: req.body.txnRef ?? null,
       booking: booking._id,
       rental: rentalDoc?._id ?? null,
@@ -196,12 +258,32 @@ export const createPayment = async (req, res, next) => {
 
     const payment = await Payment.create(paymentPayload);
 
+    if (payment.status === PAYMENT_STATUS.PENDING && req.body.autoComplete === true) {
+      payment.status = PAYMENT_STATUS.SUCCESS;
+      await payment.save();
+    }
+
+    let shouldSaveBooking = false;
     if (
       pricing.surchargeAmount !== booking.surchargeAmount ||
       pricing.totalAmount !== booking.totalAmount
     ) {
       booking.surchargeAmount = pricing.surchargeAmount;
       booking.totalAmount = pricing.totalAmount;
+      shouldSaveBooking = true;
+    }
+
+    if (
+      !skipBookingUpdate &&
+      syncBookingWithPaymentStatus(booking, payment.status, {
+        actorId: processedById ?? req.user?._id ?? null,
+        txnRef: payment.txnRef,
+      })
+    ) {
+      shouldSaveBooking = true;
+    }
+
+    if (shouldSaveBooking) {
       await booking.save();
     }
 
@@ -275,11 +357,15 @@ export const updatePayment = async (req, res, next) => {
       }
     }
 
+    const nextStatus = req.body.status ?? payment.status;
+
+    const skipBookingUpdate = req.body.skipBookingUpdate === true;
+
     const updatePayload = {
       booking: booking._id,
       rental: rentalId,
       method: req.body.method ?? payment.method,
-      status: req.body.status ?? payment.status,
+      status: nextStatus,
       txnRef: req.body.txnRef ?? payment.txnRef,
       processedBy: processedById,
       baseAmount: pricing.baseAmount,
@@ -294,12 +380,28 @@ export const updatePayment = async (req, res, next) => {
       { new: true, runValidators: true }
     ).populate(PAYMENT_RELATIONS);
 
+    let shouldSaveBooking = false;
     if (
       pricing.surchargeAmount !== booking.surchargeAmount ||
       pricing.totalAmount !== booking.totalAmount
     ) {
       booking.surchargeAmount = pricing.surchargeAmount;
       booking.totalAmount = pricing.totalAmount;
+      shouldSaveBooking = true;
+    }
+
+    if (
+      !skipBookingUpdate &&
+      syncBookingWithPaymentStatus(booking, updatePayload.status, {
+        actorId: processedById ?? req.user?._id ?? null,
+        txnRef: updated.txnRef,
+        note: req.body.statusNote ?? "Payment status updated",
+      })
+    ) {
+      shouldSaveBooking = true;
+    }
+
+    if (shouldSaveBooking) {
       await booking.save();
     }
 
@@ -319,10 +421,34 @@ export const updatePayment = async (req, res, next) => {
   }
 };
 
+export const createTestCheckout = async (req, res, next) => {
+  try {
+    const bookingId = req.body.bookingId ?? req.body.booking;
+    if (!bookingId) {
+      return res.status(400).json({ message: "bookingId is required" });
+    }
+
+    req.body = {
+      booking: bookingId,
+      method: req.body.method ?? "wallet",
+      status: PAYMENT_STATUS.SUCCESS,
+      txnRef: req.body.txnRef ?? `TEST-${Date.now()}`,
+      processedBy: req.body.processedBy ?? null,
+      autoComplete: true,
+    };
+
+    return createPayment(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   listPayments,
   getPayment,
   createPayment,
   updatePayment,
   deletePayment,
+  createTestCheckout,
 };
+

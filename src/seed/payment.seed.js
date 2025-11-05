@@ -1,11 +1,12 @@
 import Payment from "../models/payment.model.js";
+import { PAYMENT_STATUS } from "../constants/statusCodes.js";
 
 const DEFAULT_PAYMENTS = [
   {
     bookingKey: "alice-early-june",
     rentalKey: "alice-june-trip",
     method: "card",
-    status: "paid",
+    status: PAYMENT_STATUS.SUCCESS,
     surchargeAmount: 50000,
     txnRef: "EVPAY-20240601-0001",
   },
@@ -13,7 +14,7 @@ const DEFAULT_PAYMENTS = [
     bookingKey: "alice-august-getaway",
     rentalKey: "alice-august-ongoing",
     method: "card",
-    status: "paid",
+    status: PAYMENT_STATUS.SUCCESS,
     surchargeAmount: 0,
     txnRef: null,
   },
@@ -21,7 +22,7 @@ const DEFAULT_PAYMENTS = [
     bookingKey: "minh-danang-weekend",
     rentalKey: "minh-danang-trip",
     method: "wallet",
-    status: "paid",
+    status: PAYMENT_STATUS.SUCCESS,
     surchargeAmount: 30000,
     txnRef: "EVPAY-20240817-0003",
   },

@@ -319,7 +319,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             batteryPercent: { type: "number" },
             status: {
               type: "string",
-              enum: ["available", "maintenance", "rented", "unavailable"],
+              enum: ["available", "reserved", "rented", "maintenance", "damaged", "unavailable"],
             },
             odometer: { type: "number" },
             brand: {
@@ -398,7 +398,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             batteryPercent: { type: "number", minimum: 0, maximum: 100 },
             status: {
               type: "string",
-              enum: ["available", "maintenance", "rented", "unavailable"],
+              enum: ["available", "reserved", "rented", "maintenance", "damaged", "unavailable"],
             },
             odometer: { type: "number", minimum: 0 },
             brand: { type: "string" },
@@ -475,7 +475,17 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             totalAmount: { type: "number", minimum: 0 },
             status: {
               type: "string",
-              enum: ["pending", "confirmed", "cancelled", "expired"],
+              enum: [
+                "CREATED",
+                "PENDING_APPROVAL",
+                "APPROVED",
+                "REJECTED",
+                "WAITING_PAYMENT",
+                "PAID",
+                "PAYMENT_FAILED",
+                "CANCELLED",
+                "SUCCESS",
+              ],
             },
             pricing: {
               description: "Denormalized pricing breakdown for convenience.",
@@ -578,10 +588,15 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               default: 0,
               description: "Phụ phí thêm"
             },
-            status: {
-              type: "string",
-              enum: ["pending", "confirmed", "paid", "completed", "cancelled", "expired"],
-              default: "pending",
+            status: {\r\n              type: "string",\r\n              enum: [\r\n                "CREATED",\r\n                "PENDING_APPROVAL",\r\n                "APPROVED",
+                "REJECTED",
+                "WAITING_PAYMENT",
+                "PAID",
+                "PAYMENT_FAILED",
+                "CANCELLED",
+                "SUCCESS"
+              ],
+              default: "PENDING_APPROVAL",
               description: "Trạng thái booking"
             },
             notes: {
@@ -693,7 +708,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             refundAmount: { type: "number", minimum: 0 },
             status: {
               type: "string",
-              enum: ["ongoing", "completed", "cancelled", "overdue"],
+              enum: ["CREATED", "READY_FOR_PICKUP", "IN_PROGRESS", "LATE", "RETURNED", "DAMAGED", "COMPLETED", "CANCELLED"],
             },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
@@ -728,7 +743,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             conditionNotes: { type: "string" },
             status: {
               type: "string",
-              enum: ["ongoing", "completed", "cancelled", "overdue"],
+              enum: ["CREATED", "READY_FOR_PICKUP", "IN_PROGRESS", "LATE", "RETURNED", "DAMAGED", "COMPLETED", "CANCELLED"],
             },
           },
           required: ["renter", "vehicle", "pickupStation", "pickupTime"],
@@ -818,7 +833,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             },
             status: {
               type: "string",
-              enum: ["pending", "paid", "failed", "refunded"],
+              enum: ["PENDING", "SUCCESS", "FAILED", "REFUNDED"],
             },
             baseAmount: { type: "number" },
             depositAmount: { type: "number" },
@@ -858,7 +873,18 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             },
             status: {
               type: "string",
-              enum: ["pending", "paid", "failed", "refunded"],
+              enum: ["PENDING", "SUCCESS", "FAILED", "REFUNDED"],
+              description: "Defaults to SUCCESS for immediate capture; use PENDING when waiting for gateway.",
+            },
+            autoComplete: {
+              type: "boolean",
+              description:
+                "If true and status starts as PENDING, backend upgrades it to SUCCESS right away.",
+            },
+            skipBookingUpdate: {
+              type: "boolean",
+              description:
+                "Set true to prevent automatic booking status sync (used for manual adjustments).",
             },
             surchargeAmount: { type: "number", minimum: 0 },
             txnRef: { type: "string" },
@@ -2175,7 +2201,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               description: "Filter by booking status",
               schema: {
                 type: "string",
-                enum: ["pending", "confirmed", "paid", "completed", "cancelled", "expired"],
+                enum: ["CREATED", "PENDING_APPROVAL", "APPROVED", "REJECTED", "WAITING_PAYMENT", "PAID", "PAYMENT_FAILED", "CANCELLED", "SUCCESS"],
               },
             },
             {
@@ -2776,6 +2802,63 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           },
         },
       },
+      "/api/payments/checkout/test": {
+        post: {
+          tags: ["Payments"],
+          summary: "Simulate checkout (test only)",
+          description: "Creates a SUCCESS payment instantly, flips the booking to PAID, and bypasses PayOS (booking must be WAITING_PAYMENT).",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["bookingId"],
+                  properties: {
+                    bookingId: {
+                      type: "string",
+                      description: "Booking ObjectId that is waiting for payment",
+                    },
+                    method: {
+                      type: "string",
+                      description: "Payment method label (optional)",
+                      enum: ["cash", "card", "wallet", "transfer"],
+                    },
+                    txnRef: {
+                      type: "string",
+                      description: "Optional transaction reference to store on payment",
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            201: {
+              description: "Payment simulated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: { $ref: "#/components/schemas/Payment" }
+                    },
+                    required: ["data"],
+                  },
+                },
+              },
+            },
+            400: {
+              description: "Validation error",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/ErrorResponse" },
+                },
+              },
+            },
+          },
+        },
+      },
       "/api/payments/{id}": {
         get: {
           tags: ["Payments"],
@@ -2963,7 +3046,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           tags: ["PayOS"],
           summary: "PayOS webhook handler",
           description:
-            "Webhook endpoint for PayOS to send payment notifications. This endpoint verifies the webhook signature, processes the payment, creates a payment record, and updates the booking status to 'paid'. This endpoint is called by PayOS automatically when a payment is completed.",
+            "Webhook endpoint for PayOS to send payment notifications. This endpoint verifies the webhook signature, processes the payment, creates a payment record, and updates the booking status to PAID. This endpoint is called by PayOS automatically when a payment is completed.",
           requestBody: {
             required: true,
             content: {
@@ -3024,3 +3107,9 @@ export const createSwaggerUiHtml = (
 </html>`;
 
 export default createSwaggerSpec;
+
+
+
+
+
+

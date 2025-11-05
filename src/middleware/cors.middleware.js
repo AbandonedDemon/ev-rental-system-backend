@@ -3,6 +3,8 @@ import cors from "cors";
 const allowedOrigins = [
   "http://localhost:4200",
   "http://localhost:5000",
+  "http://localhost:8081",
+  "exp://192.168.1.140:8081",
   "https://electric-rental-p4ohi.ondigitalocean.app",
   "https://electric-vehicle-rental.pages.dev",
 ];

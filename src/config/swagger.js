@@ -319,7 +319,14 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             batteryPercent: { type: "number" },
             status: {
               type: "string",
-              enum: ["available", "reserved", "rented", "maintenance", "damaged", "unavailable"],
+              enum: [
+                "available",
+                "reserved",
+                "rented",
+                "maintenance",
+                "damaged",
+                "unavailable",
+              ],
             },
             odometer: { type: "number" },
             brand: {
@@ -398,7 +405,14 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             batteryPercent: { type: "number", minimum: 0, maximum: 100 },
             status: {
               type: "string",
-              enum: ["available", "reserved", "rented", "maintenance", "damaged", "unavailable"],
+              enum: [
+                "available",
+                "reserved",
+                "rented",
+                "maintenance",
+                "damaged",
+                "unavailable",
+              ],
             },
             odometer: { type: "number", minimum: 0 },
             brand: { type: "string" },
@@ -521,72 +535,78 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             // Thông tin khách hàng (required)
             renterName: {
               type: "string",
-              description: "Tên người thuê"
+              description: "Tên người thuê",
             },
             phoneNumber: {
               type: "string",
               pattern: "^0[0-9]{9}$",
-              description: "Số điện thoại (10 số bắt đầu bằng 0)"
+              description: "Số điện thoại (10 số bắt đầu bằng 0)",
             },
             email: {
               type: "string",
               format: "email",
-              description: "Email người thuê"
+              description: "Email người thuê",
             },
             // Thông tin booking (required)
             brand: {
               type: "string",
-              description: "Brand ObjectId"
+              description: "Brand ObjectId",
             },
             pickupStation: {
               type: "string",
-              description: "Station code hoặc ObjectId"
+              description: "Station code hoặc ObjectId",
             },
             pickupTimeExpected: {
               type: "string",
               format: "date-time",
-              description: "Thời gian nhận xe dự kiến"
+              description: "Thời gian nhận xe dự kiến",
             },
             rentalDays: {
               type: "integer",
               minimum: 1,
-              description: "Số ngày thuê"
+              description: "Số ngày thuê",
             },
             paymentMethod: {
               type: "string",
-              enum: ["online", "cash", "bank_transfer", "credit_card", "e_wallet"],
-              description: "Phương thức thanh toán"
+              enum: [
+                "online",
+                "cash",
+                "bank_transfer",
+                "credit_card",
+                "e_wallet",
+              ],
+              description: "Phương thức thanh toán",
             },
             agreedToPaymentTerms: {
               type: "boolean",
-              description: "Đồng ý điều khoản thanh toán (phải true)"
+              description: "Đồng ý điều khoản thanh toán (phải true)",
             },
             agreedToDataSharing: {
               type: "boolean",
-              description: "Đồng ý chia sẻ dữ liệu (phải true)"
+              description: "Đồng ý chia sẻ dữ liệu (phải true)",
             },
             // Optional fields
             renter: {
               type: "string",
               nullable: true,
-              description: "User ObjectId (nếu đã đăng nhập)"
+              description: "User ObjectId (nếu đã đăng nhập)",
             },
             renterId: {
               type: "string",
               nullable: true,
               description:
-                "Alias of renter. Nếu gửi cả renter lẫn renterId thì renterId được ưu tiên. User phải có status = verified."
+                "Alias of renter. Nếu gửi cả renter lẫn renterId thì renterId được ưu tiên. User phải có status = verified.",
             },
             vehicle: {
               type: "string",
               nullable: true,
-              description: "Vehicle ObjectId (optional, để staff assign sau)"
+              description: "Vehicle ObjectId (optional, để staff assign sau)",
             },
             surchargeAmount: {
               type: "number",
               minimum: 0,
               default: 0,
-              description: "Phụ phí thêm"
+              description: "Phụ phí thêm",
             },
             status: {
               type: "string",
@@ -599,16 +619,16 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
                 "PAID",
                 "PAYMENT_FAILED",
                 "CANCELLED",
-                "SUCCESS"
+                "SUCCESS",
               ],
               default: "PENDING_APPROVAL",
-              description: "Trạng thái booking"
+              description: "Trạng thái booking",
             },
             notes: {
               type: "string",
               nullable: true,
-              description: "Ghi chú"
-            }
+              description: "Ghi chú",
+            },
           },
           required: [
             "renterName",
@@ -620,7 +640,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             "rentalDays",
             "paymentMethod",
             "agreedToPaymentTerms",
-            "agreedToDataSharing"
+            "agreedToDataSharing",
           ],
         },
         BookingPricing: {
@@ -713,7 +733,16 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             refundAmount: { type: "number", minimum: 0 },
             status: {
               type: "string",
-              enum: ["CREATED", "READY_FOR_PICKUP", "IN_PROGRESS", "LATE", "RETURNED", "DAMAGED", "COMPLETED", "CANCELLED"],
+              enum: [
+                "CREATED",
+                "READY_FOR_PICKUP",
+                "IN_PROGRESS",
+                "LATE",
+                "RETURNED",
+                "DAMAGED",
+                "COMPLETED",
+                "CANCELLED",
+              ],
             },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
@@ -748,7 +777,16 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             conditionNotes: { type: "string" },
             status: {
               type: "string",
-              enum: ["CREATED", "READY_FOR_PICKUP", "IN_PROGRESS", "LATE", "RETURNED", "DAMAGED", "COMPLETED", "CANCELLED"],
+              enum: [
+                "CREATED",
+                "READY_FOR_PICKUP",
+                "IN_PROGRESS",
+                "LATE",
+                "RETURNED",
+                "DAMAGED",
+                "COMPLETED",
+                "CANCELLED",
+              ],
             },
           },
           required: ["renter", "vehicle", "pickupStation", "pickupTime"],
@@ -835,7 +873,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             method: {
               type: "string",
               enum: ["cash", "bank_transfer", "credit_card", "e_wallet"],
-              description: "Payment method: cash, bank_transfer, credit_card, or e_wallet"
+              description:
+                "Payment method: cash, bank_transfer, credit_card, or e_wallet",
             },
             status: {
               type: "string",
@@ -876,12 +915,14 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             method: {
               type: "string",
               enum: ["cash", "bank_transfer", "credit_card", "e_wallet"],
-              description: "Payment method: cash, bank_transfer, credit_card, or e_wallet"
+              description:
+                "Payment method: cash, bank_transfer, credit_card, or e_wallet",
             },
             status: {
               type: "string",
               enum: ["PENDING", "SUCCESS", "FAILED", "REFUNDED"],
-              description: "Defaults to SUCCESS for immediate capture; use PENDING when waiting for gateway.",
+              description:
+                "Defaults to SUCCESS for immediate capture; use PENDING when waiting for gateway.",
             },
             autoComplete: {
               type: "boolean",
@@ -917,7 +958,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             },
             checkoutLink: {
               type: "string",
-              description: "PayOS checkout URL for the customer to complete payment",
+              description:
+                "PayOS checkout URL for the customer to complete payment",
             },
           },
           required: ["orderCode", "checkoutLink"],
@@ -2208,7 +2250,17 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               description: "Filter by booking status",
               schema: {
                 type: "string",
-                enum: ["CREATED", "PENDING_APPROVAL", "APPROVED", "REJECTED", "WAITING_PAYMENT", "PAID", "PAYMENT_FAILED", "CANCELLED", "SUCCESS"],
+                enum: [
+                  "CREATED",
+                  "PENDING_APPROVAL",
+                  "APPROVED",
+                  "REJECTED",
+                  "WAITING_PAYMENT",
+                  "PAID",
+                  "PAYMENT_FAILED",
+                  "CANCELLED",
+                  "SUCCESS",
+                ],
               },
             },
             {
@@ -2232,7 +2284,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
             {
               name: "renterId",
               in: "query",
-              description: "Filter by renter ObjectId (aliases: renter, userId)",
+              description:
+                "Filter by renter ObjectId (aliases: renter, userId)",
               schema: {
                 type: "string",
                 pattern: "^[0-9a-fA-F]{24}$",
@@ -2813,7 +2866,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
         post: {
           tags: ["Payments"],
           summary: "Simulate checkout (test only)",
-          description: "Creates a SUCCESS payment instantly, flips the booking to PAID, and bypasses PayOS (booking must be WAITING_PAYMENT).",
+          description:
+            "Creates a SUCCESS payment instantly, flips the booking to PAID, and bypasses PayOS (booking must be WAITING_PAYMENT).",
           requestBody: {
             required: true,
             content: {
@@ -2824,22 +2878,29 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
                   properties: {
                     bookingId: {
                       type: "string",
-                      description: "Booking ObjectId that is waiting for payment",
+                      description:
+                        "Booking ObjectId that is waiting for payment",
                     },
                     method: {
                       type: "string",
                       description: "Payment method label (optional)",
-                      enum: ["cash", "bank_transfer", "credit_card", "e_wallet"],
-                      default: "e_wallet"
+                      enum: [
+                        "cash",
+                        "bank_transfer",
+                        "credit_card",
+                        "e_wallet",
+                      ],
+                      default: "e_wallet",
                     },
                     txnRef: {
                       type: "string",
-                      description: "Optional transaction reference to store on payment",
-                    }
-                  }
-                }
-              }
-            }
+                      description:
+                        "Optional transaction reference to store on payment",
+                    },
+                  },
+                },
+              },
+            },
           },
           responses: {
             201: {
@@ -2849,7 +2910,7 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
                   schema: {
                     type: "object",
                     properties: {
-                      data: { $ref: "#/components/schemas/Payment" }
+                      data: { $ref: "#/components/schemas/Payment" },
                     },
                     required: ["data"],
                   },
@@ -3004,14 +3065,14 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
                   },
                   example: {
                     orderCode: "123456789",
-                    checkoutLink:
-                      "https://payos.vn/checkout/123456789",
+                    checkoutLink: "https://payos.vn/checkout/123456789",
                   },
                 },
               },
             },
             400: {
-              description: "Invalid request - missing bookingId or invalid booking amount",
+              description:
+                "Invalid request - missing bookingId or invalid booking amount",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -3065,7 +3126,8 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
           },
           responses: {
             200: {
-              description: "Webhook processed successfully (or ignored if already processed)",
+              description:
+                "Webhook processed successfully (or ignored if already processed)",
             },
             401: {
               description: "Invalid signature - webhook verification failed",
@@ -3115,9 +3177,3 @@ export const createSwaggerUiHtml = (
 </html>`;
 
 export default createSwaggerSpec;
-
-
-
-
-
-

@@ -623,10 +623,6 @@ export const createSwaggerSpec = ({ serverUrl } = {}) => {
               ],
               default: "PENDING_APPROVAL",
               description: "Trạng thái booking",
-                "SUCCESS"
-              ],
-              default: "PENDING_APPROVAL",
-              description: "Trạng thái booking"
             },
             notes: {
               type: "string",

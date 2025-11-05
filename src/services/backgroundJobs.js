@@ -288,9 +288,9 @@ export const startBackgroundJobs = () => {
     }
   );
 
-  // Job 3: Auto create rentals cho booking đã thanh toán mỗi 5 phút
+  // Job 3: Auto create rentals cho booking đã thanh toán mỗi 10 giây (FOR TESTING)
   const rentalCreationJob = cron.schedule(
-    "*/5 * * * *",
+    "*/10 * * * * *",
     async () => {
       console.log("🛠 [CRON] Ensuring rentals exist for paid bookings...");
       await handlePaidBookingsWithoutRental();
@@ -347,7 +347,11 @@ export const startBackgroundJobs = () => {
   console.log("✅ Background jobs started:");
   console.log("  - Expired reservations check: Every 5 minutes");
   console.log("  - Booking payment timeout check: Every 5 minutes");
-  console.log("  - Paid booking rental creation: Every 5 minutes");
+  console.log(
+    "  - Paid booking rental creation: Every 10 SECONDS ⚡ (FOR TESTING)"
+  );
+  console.log("  - Late rental detection: Every 10 minutes");
+  console.log("  - Daily cleanup: Every day at 2:00 AM");
   console.log("  - Late rental detection: Every 10 minutes");
   console.log("  - Daily cleanup: Every day at 2:00 AM");
 };
